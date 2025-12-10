@@ -1,6 +1,6 @@
 package procedures
 
-import "github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+import "github.com/grove-platform/audit-cli/internal/rst"
 
 // ProcedureAnalysis contains analysis results for a single procedure.
 type ProcedureAnalysis struct {

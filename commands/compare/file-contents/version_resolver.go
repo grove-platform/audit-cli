@@ -1,7 +1,7 @@
 package file_contents
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/projectinfo"
+	"github.com/grove-platform/audit-cli/internal/projectinfo"
 )
 
 // ResolveVersionPaths resolves file paths for all specified versions.

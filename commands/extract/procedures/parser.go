@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // ParseFile parses a file and extracts all procedure variations.

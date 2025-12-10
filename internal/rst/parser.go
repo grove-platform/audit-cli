@@ -68,7 +68,7 @@ func ParseFileWithIncludes(
 	}
 
 	if verbose && len(includeFiles) > 0 {
-		fmt.Printf("  Found %d include(s) in %s\n", len(includeFiles), filepath.Base(filePath))
+		fmt.Printf("  Found %d includes in %s\n", len(includeFiles), filepath.Base(filePath))
 	}
 
 	// Recursively parse included files
@@ -88,4 +88,3 @@ func ParseFileWithIncludes(
 
 	return processedFiles, nil
 }
-

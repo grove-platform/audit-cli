@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+	"github.com/grove-platform/audit-cli/internal/rst"
 	"github.com/spf13/cobra"
 )
 

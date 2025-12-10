@@ -9,8 +9,8 @@
 package count
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/count/pages"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/count/tested-examples"
+	"github.com/grove-platform/audit-cli/commands/count/pages"
+	"github.com/grove-platform/audit-cli/commands/count/tested-examples"
 	"github.com/spf13/cobra"
 )
 

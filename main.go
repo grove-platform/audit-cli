@@ -13,18 +13,25 @@
 package main
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/analyze"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/compare"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/count"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/extract"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/search"
+	"fmt"
+
+	"github.com/grove-platform/audit-cli/commands/analyze"
+	"github.com/grove-platform/audit-cli/commands/compare"
+	"github.com/grove-platform/audit-cli/commands/count"
+	"github.com/grove-platform/audit-cli/commands/extract"
+	"github.com/grove-platform/audit-cli/commands/search"
 	"github.com/spf13/cobra"
 )
 
+// version is the current version of audit-cli.
+// Update this when releasing new versions following semantic versioning.
+const version = "0.1.0"
+
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "audit-cli",
-		Short: "A CLI tool for auditing and analyzing MongoDB documentation",
+		Use:     "audit-cli",
+		Version: version,
+		Short:   "A CLI tool for auditing and analyzing MongoDB documentation",
 		Long: `audit-cli helps MongoDB technical writers perform audit-related tasks in the
 documentation monorepo, including:
 
@@ -36,6 +43,9 @@ documentation monorepo, including:
 
 Designed for maintenance tasks, scoping work, and reporting to stakeholders.`,
 	}
+
+	// Customize version output format
+	rootCmd.SetVersionTemplate(fmt.Sprintf("audit-cli version %s\n", version))
 
 	// Add parent commands
 	rootCmd.AddCommand(extract.NewExtractCommand())

@@ -10,9 +10,9 @@
 package analyze
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/analyze/includes"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/analyze/procedures"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/analyze/usage"
+	"github.com/grove-platform/audit-cli/commands/analyze/includes"
+	"github.com/grove-platform/audit-cli/commands/analyze/procedures"
+	"github.com/grove-platform/audit-cli/commands/analyze/usage"
 	"github.com/spf13/cobra"
 )
 

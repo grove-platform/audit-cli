@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/projectinfo"
+	"github.com/grove-platform/audit-cli/internal/projectinfo"
 )
 
 // PrintTree prints the include tree structure.

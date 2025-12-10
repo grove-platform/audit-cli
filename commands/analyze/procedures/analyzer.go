@@ -3,7 +3,7 @@ package procedures
 import (
 	"fmt"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // AnalyzeFile analyzes procedures in a file and returns a report.

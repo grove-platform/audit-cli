@@ -65,7 +65,7 @@ func TestParseFileWithFilter(t *testing.T) {
 		}
 	}
 
-	t.Logf("Found %d procedure(s) matching 'python'", len(variations))
+	t.Logf("Found %d procedures matching 'python'", len(variations))
 }
 
 func TestParseFileDeterministic(t *testing.T) {

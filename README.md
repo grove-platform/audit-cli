@@ -218,19 +218,19 @@ Examples:
 With the `-v` flag, the command shows detailed information about each procedure:
 
 ```
-Found 36 unique procedure(s):
+Found 36 unique procedures:
 
 1. Before You Begin
    Output file: before-you-begin-pull-the-mongodb-docker-image-e8eeec.rst
    Steps: 5
-   Appears in 2 selection(s):
+   Appears in 2 selections:
      - docker, None, None, None, None, None, without-search-docker
      - docker, None, None, None, None, None, with-search-docker
 
 2. Install MongoDB Community Edition
    Output file: install-mongodb-community-edition-download-the-tarball-44c437.rst
    Steps: 4
-   Appears in 1 selection(s):
+   Appears in 1 selections:
      - macos, None, None, tarball, None, None, None
 ```
 
@@ -771,7 +771,7 @@ Procedure Details
    Implementation: procedure-directive
    Steps: 5
    Contains sub-procedures: no
-   Appears in 2 selection(s):
+   Appears in 2 selections:
      - docker, None, None, None, None, None, without-search-docker
      - docker, None, None, None, None, None, with-search-docker
 
@@ -787,7 +787,7 @@ Procedure Details
    Implementation: ordered-list
    Steps: 4
    Contains sub-procedures: yes
-   Appears in 10 selection(s):
+   Appears in 10 selections:
      - linux, None, None, tarball, None, None, with-search
      - linux, None, None, tarball, None, None, without-search
      ...
@@ -1333,7 +1333,7 @@ Example: Adding `extract tables` subcommand
 3. **Register the subcommand** in `commands/extract/extract.go`:
    ```go
    import (
-       "github.com/mongodb/code-example-tooling/audit-cli/commands/extract/tables"
+       "github.com/grove-platform/audit-cli/commands/extract/tables"
    )
 
    func NewExtractCommand() *cobra.Command {
@@ -1378,7 +1378,7 @@ Example: Adding `analyze` parent command
 3. **Register in main.go:**
    ```go
    import (
-       "github.com/mongodb/code-example-tooling/audit-cli/commands/analyze"
+       "github.com/grove-platform/audit-cli/commands/analyze"
    )
 
    func main() {

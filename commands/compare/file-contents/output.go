@@ -62,16 +62,16 @@ func printSummary(result *ComparisonResult) {
 
 		// Show breakdown
 		if result.MatchingFiles > 0 {
-			fmt.Printf("  - %d version(s) match\n", result.MatchingFiles)
+			fmt.Printf("  - %d versions match\n", result.MatchingFiles)
 		}
 		if result.DifferingFiles > 0 {
-			fmt.Printf("  - %d version(s) differ\n", result.DifferingFiles)
+			fmt.Printf("  - %d versions differ\n", result.DifferingFiles)
 		}
 		if result.NotFoundFiles > 0 {
-			fmt.Printf("  - %d version(s) not found (file does not exist)\n", result.NotFoundFiles)
+			fmt.Printf("  - %d versions not found (file does not exist)\n", result.NotFoundFiles)
 		}
 		if result.ErrorFiles > 0 {
-			fmt.Printf("  - %d version(s) had errors\n", result.ErrorFiles)
+			fmt.Printf("  - %d versions had errors\n", result.ErrorFiles)
 		}
 
 		// Show hints (only in version comparison mode)
@@ -88,10 +88,10 @@ func printSummary(result *ComparisonResult) {
 		// No differences, but some files not found or had errors
 		fmt.Printf("✓ No differences found among existing files\n")
 		if result.NotFoundFiles > 0 {
-			fmt.Printf("  - %d version(s) not found (file does not exist)\n", result.NotFoundFiles)
+			fmt.Printf("  - %d versions not found (file does not exist)\n", result.NotFoundFiles)
 		}
 		if result.ErrorFiles > 0 {
-			fmt.Printf("  - %d version(s) had errors\n", result.ErrorFiles)
+			fmt.Printf("  - %d versions had errors\n", result.ErrorFiles)
 		}
 	}
 }
@@ -200,4 +200,3 @@ func printDiffs(result *ComparisonResult) {
 
 	fmt.Println(strings.Repeat("=", 80))
 }
-

@@ -1,6 +1,6 @@
 package procedures
 
-import "github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+import "github.com/grove-platform/audit-cli/internal/rst"
 
 // ProcedureVariation represents a single variation of a procedure to be extracted.
 type ProcedureVariation struct {
