@@ -1,3 +1,5 @@
 audit-cli
 output/
 bin/
+.idea/
+.vscode/
