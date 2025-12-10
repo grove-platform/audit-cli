@@ -115,6 +115,12 @@ go build ../
 go run main.go [command] [flags]
 ```
 
+### Check Version
+```bash
+./audit-cli --version
+# Output: audit-cli version 0.1.0
+```
+
 ### Run Tests
 ```bash
 # All tests
@@ -129,6 +135,98 @@ go test ./commands/extract/code-examples -run TestLiteralIncludeDirective -v
 # With coverage
 go test ./... -cover
 ```
+
+## Versioning
+
+This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (SemVer):
+
+- **MAJOR** version (X.0.0): Incompatible API changes or breaking changes to command behavior
+- **MINOR** version (0.X.0): New functionality added in a backward-compatible manner
+- **PATCH** version (0.0.X): Backward-compatible bug fixes
+
+**Note**: While in `0.x.x` versions, breaking changes may occur in minor releases. Version `1.0.0` will signal a stable, production-ready release.
+
+### When to Increment Versions
+
+- **MAJOR** (e.g., 0.5.0 → 1.0.0):
+  - Breaking changes to command syntax or flags
+  - Removal of commands or features
+  - Changes to output format that break existing scripts
+  - First stable release (0.x.x → 1.0.0)
+
+- **MINOR** (e.g., 0.1.0 → 0.2.0):
+  - New commands or subcommands
+  - New flags or options
+  - New RST directive support
+  - New output formats (when existing formats remain unchanged)
+  - Significant new features
+
+- **PATCH** (e.g., 0.1.0 → 0.1.1):
+  - Bug fixes
+  - Performance improvements
+  - Documentation updates
+  - Internal refactoring with no user-facing changes
+
+### Releasing a New Version
+
+When releasing a new version, follow these steps:
+
+1. **Update the version constant** in `main.go`:
+   ```go
+   const version = "0.2.0"  // Update this line
+   ```
+
+2. **Update CHANGELOG.md** following the [Keep a Changelog](https://keepachangelog.com/) format:
+   ```markdown
+   ## [0.2.0] - YYYY-MM-DD
+
+   ### Added
+   - New feature descriptions
+
+   ### Changed
+   - Modified behavior descriptions
+
+   ### Fixed
+   - Bug fix descriptions
+
+   ### Removed
+   - Removed feature descriptions (if any)
+   ```
+
+3. **Test the version output**:
+   ```bash
+   go run main.go --version
+   # Should display: audit-cli version 0.2.0
+   ```
+
+4. **Commit the changes**:
+   ```bash
+   git add main.go CHANGELOG.md
+   git commit -m "Release version 0.2.0"
+   ```
+
+5. **Tag the release** (optional but recommended):
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+### CHANGELOG Format
+
+The CHANGELOG.md follows the [Keep a Changelog](https://keepachangelog.com/) format with these sections:
+
+- **Added**: New features, commands, or capabilities
+- **Changed**: Changes to existing functionality
+- **Deprecated**: Features that will be removed in future versions
+- **Removed**: Features that have been removed
+- **Fixed**: Bug fixes
+- **Security**: Security-related changes
+
+Each version entry should include:
+- Version number in square brackets: `[0.2.0]`
+- Release date in ISO format: `YYYY-MM-DD`
+- Organized sections with bullet points describing changes
+- User-facing language (avoid technical jargon when possible)
 
 ## Development Patterns
 
