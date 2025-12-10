@@ -62,11 +62,13 @@ audit-cli/
 
 ## Technology Stack
 
-- **Language**: Go 1.24
-- **CLI Framework**: [spf13/cobra](https://github.com/spf13/cobra) v1.10.1
-- **Diff Library**: [aymanbagabas/go-udiff](https://github.com/aymanbagabas/go-udiff) v0.3.1
-- **YAML Parsing**: gopkg.in/yaml.v3 v3.0.1
+- **Language**: Go
+- **CLI Framework**: [spf13/cobra](https://github.com/spf13/cobra)
+- **Diff Library**: [aymanbagabas/go-udiff](https://github.com/aymanbagabas/go-udiff)
+- **YAML Parsing**: gopkg.in/yaml.vX
 - **Testing**: Go standard library (`testing` package)
+
+Refer to the `go.mod` for version info.
 
 ## Domain Knowledge: MongoDB Documentation
 
@@ -550,5 +552,3 @@ go test ./... -v -race -coverprofile=coverage.out
 # View coverage summary
 go tool cover -func=coverage.out | tail -1
 ```
-
-
