@@ -6,6 +6,17 @@ import "regexp"
 //
 // This file contains all regular expressions for matching RST directives.
 // These patterns are shared across the codebase to ensure consistency.
+//
+// IMPORTANT: This is the ONLY place where RST directive regex patterns should be defined.
+// When adding support for new RST directives:
+//   1. Add the regex pattern to this file
+//   2. Add corresponding parsing logic to directive_parser.go or a specialized parser file
+//   3. DO NOT define RST regex patterns in individual command modules
+//
+// This centralization ensures:
+//   - Parsing capabilities can be reused across commands
+//   - Functionality can be expanded incrementally
+//   - Parsing logic remains maintainable and consistent
 
 // IncludeDirectiveRegex matches .. include:: directives in RST files.
 // Example: .. include:: /path/to/file.rst
