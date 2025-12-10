@@ -1333,7 +1333,7 @@ Example: Adding `extract tables` subcommand
 3. **Register the subcommand** in `commands/extract/extract.go`:
    ```go
    import (
-       "github.com/mongodb/code-example-tooling/audit-cli/commands/extract/tables"
+       "github.com/grove-platform/audit-cli/commands/extract/tables"
    )
 
    func NewExtractCommand() *cobra.Command {
@@ -1378,7 +1378,7 @@ Example: Adding `analyze` parent command
 3. **Register in main.go:**
    ```go
    import (
-       "github.com/mongodb/code-example-tooling/audit-cli/commands/analyze"
+       "github.com/grove-platform/audit-cli/commands/analyze"
    )
 
    func main() {

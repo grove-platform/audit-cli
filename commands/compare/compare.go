@@ -8,7 +8,7 @@
 package compare
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/compare/file-contents"
+	"github.com/grove-platform/audit-cli/commands/compare/file-contents"
 	"github.com/spf13/cobra"
 )
 

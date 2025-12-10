@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/projectinfo"
+	"github.com/grove-platform/audit-cli/internal/projectinfo"
 )
 
 // CompareFiles performs a direct comparison between two files.

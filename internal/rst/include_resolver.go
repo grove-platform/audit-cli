@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/projectinfo"
+	"github.com/grove-platform/audit-cli/internal/projectinfo"
 )
 
 // FindIncludeDirectives finds all include directives in a file and resolves their paths.

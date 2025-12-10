@@ -8,7 +8,7 @@
 package search
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/search/find-string"
+	"github.com/grove-platform/audit-cli/commands/search/find-string"
 	"github.com/spf13/cobra"
 )
 

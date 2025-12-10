@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // AnalyzeIncludes analyzes a file and builds a tree of include relationships.

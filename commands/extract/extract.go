@@ -9,8 +9,8 @@
 package extract
 
 import (
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/extract/code-examples"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/extract/procedures"
+	"github.com/grove-platform/audit-cli/commands/extract/code-examples"
+	"github.com/grove-platform/audit-cli/commands/extract/procedures"
 	"github.com/spf13/cobra"
 )
 

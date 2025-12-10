@@ -15,11 +15,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/analyze"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/compare"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/count"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/extract"
-	"github.com/mongodb/code-example-tooling/audit-cli/commands/search"
+	"github.com/grove-platform/audit-cli/commands/analyze"
+	"github.com/grove-platform/audit-cli/commands/compare"
+	"github.com/grove-platform/audit-cli/commands/count"
+	"github.com/grove-platform/audit-cli/commands/extract"
+	"github.com/grove-platform/audit-cli/commands/search"
 	"github.com/spf13/cobra"
 )
 

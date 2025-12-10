@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/projectinfo"
-	"github.com/mongodb/code-example-tooling/audit-cli/internal/rst"
+	"github.com/grove-platform/audit-cli/internal/projectinfo"
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // AnalyzeUsage finds all files that use the target file.

@@ -20,7 +20,7 @@ This document provides essential context for LLMs performing development tasks i
 ```
 audit-cli/
 ├── main.go                    # CLI entry point using cobra
-├── go.mod                     # Module: github.com/mongodb/code-example-tooling/audit-cli
+├── go.mod                     # Module: github.com/grove-platform/audit-cli
 ├── commands/                  # Command implementations (parent + subcommands)
 │   ├── extract/              # Extract content from RST files
 │   │   ├── extract.go        # Parent command
@@ -501,7 +501,7 @@ For `count tested-examples` command:
 
 ### Import Path
 ```go
-import "github.com/mongodb/code-example-tooling/audit-cli/{package}"
+import "github.com/grove-platform/audit-cli/{package}"
 ```
 
 ### Running Specific Tests
@@ -521,5 +521,34 @@ None currently used in this project.
 
 ### Environment Variables
 None currently used in this project.
+
+## Continuous Integration
+
+### GitHub Actions Workflow
+
+The project uses GitHub Actions to automatically run tests on pull requests and pushes to `main`.
+
+**Workflow file**: `.github/workflows/run-tests.yml`
+
+**What it does**:
+- Runs on all PRs to `main` and pushes to `main`
+- Sets up Go 1.24
+- Caches Go modules for faster builds
+- Runs all tests with race detection: `go test ./... -v -race -coverprofile=coverage.out`
+- Displays test coverage summary
+
+**Viewing results**:
+- Check the "Actions" tab in GitHub to see workflow runs
+- Each PR will show a green checkmark or red X indicating test status
+- Click on the workflow run to see detailed test output and coverage
+
+**Local testing before pushing**:
+```bash
+# Run the same tests that CI runs
+go test ./... -v -race -coverprofile=coverage.out
+
+# View coverage summary
+go tool cover -func=coverage.out | tail -1
+```
 
 
