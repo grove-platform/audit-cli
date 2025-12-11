@@ -10,6 +10,7 @@ This document provides essential context for LLMs performing development tasks i
 - Extract code examples and procedures from RST files
 - Search documentation for patterns
 - Analyze file dependencies and relationships
+- Analyze composable definitions and usage across projects
 - Compare files across documentation versions
 - Count documentation pages and tested code examples
 
@@ -31,7 +32,8 @@ audit-cli/
 │   ├── analyze/              # Analyze RST structures
 │   │   ├── includes/         # Analyze include relationships
 │   │   ├── usage/            # Find file usages
-│   │   └── procedures/       # Analyze procedure variations
+│   │   ├── procedures/       # Analyze procedure variations
+│   │   └── composables/      # Analyze composable definitions and usage
 │   ├── compare/              # Compare files across versions
 │   │   └── file-contents/    # Compare file contents
 │   └── count/                # Count documentation content
@@ -66,6 +68,7 @@ audit-cli/
 - **CLI Framework**: [spf13/cobra](https://github.com/spf13/cobra)
 - **Diff Library**: [aymanbagabas/go-udiff](https://github.com/aymanbagabas/go-udiff)
 - **YAML Parsing**: gopkg.in/yaml.vX
+- **TOML Parsing**: [github.com/BurntSushi/toml](https://github.com/BurntSushi/toml) v1.5.0
 - **Testing**: Go standard library (`testing` package)
 
 Refer to the `go.mod` for version info.
@@ -92,6 +95,12 @@ Refer to the `go.mod` for version info.
 **Content Inclusion**:
 - `.. include::` - Include RST content from other files
 - `.. toctree::` - Table of contents (navigation, not content inclusion)
+
+**Composables**:
+- Defined in `snooty.toml` files at project/version root
+- Used in `.. composable-tutorial::` directives with `:options:` parameter
+- Enable context-specific documentation (e.g., different languages, deployment types)
+- Each composable has an ID, title, default, and list of options
 
 ### MongoDB Documentation Structure
 

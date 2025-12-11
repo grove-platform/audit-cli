@@ -5,6 +5,24 @@ All notable changes to audit-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-12-11
+
+### Added
+
+#### Analyze Commands
+- `analyze composables` - Analyze composable definitions in snooty.toml files
+  - Inventory all composables across projects and versions
+  - Identify identical composables (same ID, title, and options) across different projects/versions
+  - Find similar composables with different IDs but overlapping option sets using Jaccard similarity (60% threshold)
+  - Track composable usage in RST files via `composable-tutorial` directives
+  - Identify unused composables that may be candidates for removal
+  - Flags:
+    - `--for-project` - Filter to a specific project
+    - `--current-only` - Only analyze current versions
+    - `--verbose` - Show full option details with titles
+    - `--find-consolidation-candidates` - Show identical and similar composables for consolidation
+    - `--find-usages` - Show where each composable is used in RST files with file paths
+
 ## [0.1.0] - 2025-12-10
 
 ### Added

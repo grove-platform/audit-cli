@@ -65,7 +65,8 @@ audit-cli
 ├── analyze          # Analyze RST file structures
 │   ├── includes
 │   ├── usage
-│   └── procedures
+│   ├── procedures
+│   └── composables
 ├── compare          # Compare files across versions
 │   └── file-contents
 └── count            # Count code examples and documentation pages
@@ -834,6 +835,207 @@ The parser ensures deterministic results by:
 - This guarantees the same file will always produce the same counts and groupings
 
 For more details about procedure parsing logic, refer to [docs/PROCEDURE_PARSING.md](docs/PROCEDURE_PARSING.md).
+
+#### `analyze composables`
+
+Analyze composable definitions in `snooty.toml` files across the MongoDB documentation monorepo. This command helps identify consolidation opportunities and track composable usage.
+
+Composables are configuration elements in `snooty.toml` that define content variations for different contexts (e.g., different programming languages, deployment types, or interfaces). They're used in `.. composable-tutorial::` directives to create context-specific documentation.
+
+**Use Cases:**
+
+This command helps writers:
+- Inventory all composables across projects and versions
+- Identify identical composables that could be consolidated across projects
+- Find similar composables with different IDs but overlapping options (potential consolidation candidates)
+- Track where composables are used in RST files
+- Identify unused composables that may be candidates for removal
+- Understand the scope of changes when updating a composable
+
+**Basic Usage:**
+
+```bash
+# Analyze all composables in the monorepo
+./audit-cli analyze composables /path/to/docs-monorepo
+
+# Analyze composables for a specific project
+./audit-cli analyze composables /path/to/docs-monorepo --for-project atlas
+
+# Analyze only current versions
+./audit-cli analyze composables /path/to/docs-monorepo --current-only
+
+# Show full option details with titles
+./audit-cli analyze composables /path/to/docs-monorepo --verbose
+
+# Find consolidation candidates
+./audit-cli analyze composables /path/to/docs-monorepo --find-consolidation-candidates
+
+# Find where composables are used
+./audit-cli analyze composables /path/to/docs-monorepo --find-usages
+
+# Combine flags for comprehensive analysis
+./audit-cli analyze composables /path/to/docs-monorepo --for-project atlas --find-consolidation-candidates --find-usages --verbose
+```
+
+**Flags:**
+
+- `--for-project <project>` - Only analyze composables for a specific project
+- `--current-only` - Only analyze composables in current versions (skips versioned directories)
+- `-v, --verbose` - Show full option details with titles instead of just IDs
+- `--find-consolidation-candidates` - Show identical and similar composables for consolidation
+- `--find-usages` - Show where each composable is used in RST files
+
+**Output:**
+
+**Default output (summary and table):**
+```
+Composables Analysis
+====================
+
+Total composables found: 24
+
+Composables by ID:
+  - deployment-type: 1
+  - interface: 1
+  - language: 1
+  ...
+
+All Composables
+===============
+
+Project              Version         ID                             Title                          Options
+------------------------------------------------------------------------------------------------------------------------
+atlas                (none)          deployment-type                Deployment Type                atlas, local, self, local-onprem
+atlas                (none)          interface                      Interface                      compass, mongosh, atlas-ui, driver
+atlas                (none)          language                       Language                       c, csharp, cpp, go, java-async, ...
+```
+
+**With `--find-consolidation-candidates`:**
+
+Shows two types of consolidation opportunities:
+
+1. **Identical Composables** - Same ID, title, and options across different projects/versions
+   ```
+   Identical Composables (Consolidation Candidates)
+   ================================================
+
+   ID: connection-mechanism
+   Occurrences: 15
+   Title: Connection Mechanism
+   Default: connection-string
+   Options: connection-string, mongocred
+
+   Found in:
+     - java/current
+     - java/v5.1
+     - kotlin/current
+     ...
+   ```
+
+2. **Similar Composables** - Different IDs but similar option sets (60%+ overlap)
+   ```
+   Similar Composables (Review Recommended)
+   ========================================
+
+   Similar Composables (100.0% similarity)
+   Composables: 2
+
+   Composables in this group:
+
+     1. ID: interface-atlas-only
+        Location: atlas
+        Title: Interface
+        Default: driver
+        Options: atlas-ui, driver, mongosh
+
+     2. ID: interface-local-only
+        Location: atlas
+        Title: Interface
+        Default: driver
+        Options: atlas-ui, driver, mongosh
+   ```
+
+**With `--find-usages`:**
+
+Shows where each composable is used in `.. composable-tutorial::` directives:
+
+```
+Composable Usages
+=================
+
+Composable ID: deployment-type
+Total usages: 28
+
+  atlas: 28 usages
+
+Composable ID: interface
+Total usages: 35
+
+  atlas: 35 usages
+
+Unused Composables
+------------------
+
+  connection-type:
+    - atlas
+```
+
+**With `--verbose` and `--find-usages`:**
+
+Shows file paths where each composable is used:
+
+```
+Composable ID: interface-atlas-only
+Total usages: 1
+
+  atlas: 1 usages
+    - content/atlas/source/atlas-vector-search/tutorials/vector-search-quick-start.txt
+```
+
+**Understanding Composables:**
+
+Composables are defined in `snooty.toml` files:
+```toml
+[[composables]]
+id = "language"
+title = "Language"
+default = "nodejs"
+
+[[composables.options]]
+id = "python"
+title = "Python"
+
+[[composables.options]]
+id = "nodejs"
+title = "Node.js"
+```
+
+They're used in RST files with `.. composable-tutorial::` directives:
+```rst
+.. composable-tutorial::
+   :options: language, interface
+   :defaults: nodejs, driver
+
+   .. procedure::
+      .. step:: Install dependencies
+         .. selected-content::
+            :selections: language=nodejs
+            npm install mongodb
+         .. selected-content::
+            :selections: language=python
+            pip install pymongo
+```
+
+**Consolidation Analysis:**
+
+The command uses Jaccard similarity (intersection / union) to compare option sets between composables with different IDs. A 60% similarity threshold is used to identify potential consolidation candidates.
+
+For example, if you have:
+- `language` with 15 options
+- `language-atlas-only` with 14 options (13 in common with `language`)
+- `language-local-only` with 14 options (13 in common with `language`)
+
+These would be flagged as similar composables (93.3% similarity) and potential consolidation candidates.
 
 ### Compare Commands
 
