@@ -31,17 +31,17 @@ import (
 //   - --for-project: Only analyze composables for a specific project
 //   - --current-only: Only analyze composables in current versions
 //   - --verbose: Show full option details with titles
-//   - --find-consolidation-candidates: Show identical and similar composables for consolidation
+//   - --find-similar: Show identical and similar composables for consolidation
 //   - --find-usages: Show where each composable is used in RST files
 //   - --with-rstspec: Include composables from the canonical rstspec.toml file
 func NewComposablesCommand() *cobra.Command {
 	var (
-		forProject                  string
-		currentOnly                 bool
-		verbose                     bool
-		findConsolidationCandidates bool
-		findUsages                  bool
-		withRstspec                 bool
+		forProject  string
+		currentOnly bool
+		verbose     bool
+		findSimilar bool
+		findUsages  bool
+		withRstspec bool
 	)
 
 	cmd := &cobra.Command{
@@ -59,7 +59,7 @@ By default, the output includes:
   - A summary of all composables grouped by ID
   - A detailed table of all composables found
 
-With --find-consolidation-candidates, the output also includes:
+With --find-similar, the output also includes:
   - Identical composables (same ID, title, and options) across different projects/versions
   - Similar composables (different IDs but similar option sets) that may be consolidation candidates
 
@@ -95,16 +95,16 @@ Examples:
   analyze composables --verbose
 
   # Find consolidation candidates
-  analyze composables --find-consolidation-candidates
+  analyze composables --find-similar
 
   # Find where composables are used
   analyze composables --find-usages
 
   # Include canonical rstspec.toml composables
-  analyze composables --with-rstspec --find-consolidation-candidates
+  analyze composables --with-rstspec --find-similar
 
   # Combine flags
-  analyze composables --for-project atlas --find-consolidation-candidates --find-usages --verbose`,
+  analyze composables --for-project atlas --find-similar --find-usages --verbose`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Resolve monorepo path from args, env, or config
@@ -116,14 +116,14 @@ Examples:
 			if err != nil {
 				return err
 			}
-			return runComposables(monorepoPath, forProject, currentOnly, verbose, findConsolidationCandidates, findUsages, withRstspec)
+			return runComposables(monorepoPath, forProject, currentOnly, verbose, findSimilar, findUsages, withRstspec)
 		},
 	}
 
 	cmd.Flags().StringVar(&forProject, "for-project", "", "Only analyze composables for a specific project")
 	cmd.Flags().BoolVar(&currentOnly, "current-only", false, "Only analyze composables in current versions")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show full option details with titles")
-	cmd.Flags().BoolVar(&findConsolidationCandidates, "find-consolidation-candidates", false, "Show identical and similar composables for consolidation")
+	cmd.Flags().BoolVar(&findSimilar, "find-similar", false, "Show identical and similar composables for consolidation")
 	cmd.Flags().BoolVar(&findUsages, "find-usages", false, "Show where each composable is used in RST files")
 	cmd.Flags().BoolVar(&withRstspec, "with-rstspec", false, "Include composables from the canonical rstspec.toml file")
 
@@ -131,7 +131,7 @@ Examples:
 }
 
 // runComposables executes the composables analysis operation.
-func runComposables(monorepoPath string, forProject string, currentOnly bool, verbose bool, findConsolidationCandidates bool, findUsages bool, withRstspec bool) error {
+func runComposables(monorepoPath string, forProject string, currentOnly bool, verbose bool, findSimilar bool, findUsages bool, withRstspec bool) error {
 	// Find all snooty.toml files and extract composables
 	locations, err := FindSnootyTOMLFiles(monorepoPath, forProject, currentOnly)
 	if err != nil {
@@ -167,7 +167,7 @@ func runComposables(monorepoPath string, forProject string, currentOnly bool, ve
 	}
 
 	// Print the results
-	PrintResults(result, verbose, findConsolidationCandidates, findUsages, usages)
+	PrintResults(result, verbose, findSimilar, findUsages, usages)
 
 	return nil
 }

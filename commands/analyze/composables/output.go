@@ -8,7 +8,7 @@ import (
 )
 
 // PrintResults prints the analysis results in a formatted table.
-func PrintResults(result *AnalysisResult, verbose bool, findConsolidationCandidates bool, findUsages bool, usages map[string]*ComposableUsage) {
+func PrintResults(result *AnalysisResult, verbose bool, findSimilar bool, findUsages bool, usages map[string]*ComposableUsage) {
 	fmt.Printf("Composables Analysis\n")
 	fmt.Printf("====================\n\n")
 
@@ -18,7 +18,7 @@ func PrintResults(result *AnalysisResult, verbose bool, findConsolidationCandida
 	printSummaryByID(result)
 
 	// Print identical and similar groups only if requested
-	if findConsolidationCandidates {
+	if findSimilar {
 		// Print identical groups
 		if len(result.IdenticalGroups) > 0 {
 			fmt.Printf("\nIdentical Composables (Consolidation Candidates)\n")

@@ -975,16 +975,16 @@ This command helps writers:
 ./audit-cli analyze composables --verbose
 
 # Find consolidation candidates
-./audit-cli analyze composables --find-consolidation-candidates
+./audit-cli analyze composables --find-similar
 
 # Find where composables are used
 ./audit-cli analyze composables --find-usages
 
 # Include canonical rstspec.toml composables
-./audit-cli analyze composables --with-rstspec --find-consolidation-candidates
+./audit-cli analyze composables --with-rstspec --find-similar
 
 # Combine flags for comprehensive analysis
-./audit-cli analyze composables --for-project atlas --find-consolidation-candidates --find-usages --verbose
+./audit-cli analyze composables --for-project atlas --find-similar --find-usages --verbose
 ```
 
 **Flags:**
@@ -992,7 +992,7 @@ This command helps writers:
 - `--for-project <project>` - Only analyze composables for a specific project
 - `--current-only` - Only analyze composables in current versions (skips versioned directories)
 - `-v, --verbose` - Show full option details with titles instead of just IDs
-- `--find-consolidation-candidates` - Show identical and similar composables for consolidation
+- `--find-similar` - Show identical and similar composables for consolidation
 - `--find-usages` - Show where each composable is used in RST files
 - `--with-rstspec` - Include composables from the canonical rstspec.toml file in the snooty-parser repository
 
@@ -1021,7 +1021,7 @@ atlas                (none)          interface                      Interface   
 atlas                (none)          language                       Language                       c, csharp, cpp, go, java-async, ...
 ```
 
-**With `--find-consolidation-candidates`:**
+**With `--find-similar`:**
 
 Shows two types of consolidation opportunities:
 

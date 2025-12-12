@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `--for-project` - Filter to a specific project
     - `--current-only` - Only analyze current versions
     - `--verbose` - Show full option details with titles
-    - `--find-consolidation-candidates` - Show identical and similar composables for consolidation
+    - `--find-similar` - Show identical and similar composables for consolidation
     - `--find-usages` - Show where each composable is used in RST files with file paths
     - `--with-rstspec` - Show canonical composable definitions from rstspec.toml
 
