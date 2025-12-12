@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -44,10 +45,20 @@ func NewCodeExamplesCommand() *cobra.Command {
 		Use:   "code-examples [filepath]",
 		Short: "Extract code examples from reStructuredText files",
 		Long: `Extract code examples from reStructuredText directives (code-block, literalinclude, io-code-block)
-and output them as individual files.`,
+and output them as individual files.
+
+File Path Resolution:
+  Paths can be specified as:
+    1. Absolute path: /full/path/to/file.rst
+    2. Relative to monorepo root (if configured): manual/manual/source/file.rst
+    3. Relative to current directory: ./file.rst`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filePath := args[0]
+			// Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+			filePath, err := config.ResolveFilePath(args[0])
+			if err != nil {
+				return err
+			}
 			return runExtract(filePath, recursive, followIncludes, outputDir, dryRun, verbose, preserveDirs)
 		},
 	}

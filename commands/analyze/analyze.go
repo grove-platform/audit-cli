@@ -5,11 +5,13 @@
 //   - includes: Analyze include directive relationships in RST files
 //   - usage: Find all files that use a target file
 //   - procedures: Analyze procedure variations and statistics
+//   - composables: Analyze composables in snooty.toml files
 //
 // Future subcommands could include analyzing cross-references, broken links, or content metrics.
 package analyze
 
 import (
+	"github.com/grove-platform/audit-cli/commands/analyze/composables"
 	"github.com/grove-platform/audit-cli/commands/analyze/includes"
 	"github.com/grove-platform/audit-cli/commands/analyze/procedures"
 	"github.com/grove-platform/audit-cli/commands/analyze/usage"
@@ -30,6 +32,7 @@ Currently supports:
   - includes: Analyze include directive relationships (forward dependencies)
   - usage: Find all files that use a target file (reverse dependencies)
   - procedures: Analyze procedure variations and statistics
+  - composables: Analyze composables in snooty.toml files
 
 Future subcommands may support analyzing cross-references, broken links, or content metrics.`,
 	}
@@ -38,6 +41,7 @@ Future subcommands may support analyzing cross-references, broken links, or cont
 	cmd.AddCommand(includes.NewIncludesCommand())
 	cmd.AddCommand(usage.NewUsageCommand())
 	cmd.AddCommand(procedures.NewProceduresCommand())
+	cmd.AddCommand(composables.NewComposablesCommand())
 
 	return cmd
 }

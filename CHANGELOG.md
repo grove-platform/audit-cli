@@ -5,6 +5,55 @@ All notable changes to audit-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-12-12
+
+### Added
+
+#### Analyze Commands
+- `analyze composables` - Analyze composable definitions in snooty.toml files
+  - Inventory all composables across projects and versions
+  - Identify identical composables (same ID, title, and options) across different projects/versions
+  - Find similar composables with different IDs but overlapping option sets using Jaccard similarity (60% threshold)
+  - Track composable usage in RST files via `composable-tutorial` directives
+  - Identify unused composables that may be candidates for removal
+  - Flags:
+    - `--for-project` - Filter to a specific project
+    - `--current-only` - Only analyze current versions
+    - `--verbose` - Show full option details with titles
+    - `--find-similar` - Show identical and similar composables for consolidation
+    - `--find-usages` - Show where each composable is used in RST files with file paths
+    - `--with-rstspec` - Show canonical composable definitions from rstspec.toml
+
+#### Configuration System
+- Monorepo path configuration via three methods (priority order):
+  1. Command-line argument (highest priority)
+  2. Environment variable `AUDIT_CLI_MONOREPO_PATH`
+  3. Config file `.audit-cli.yaml` in current or home directory (lowest priority)
+- Config file format:
+  ```yaml
+  monorepo_path: /path/to/docs-monorepo
+  ```
+- Applies to commands: `analyze composables`, `count tested-examples`, `count pages`
+
+#### File Path Resolution
+- Flexible path resolution for all file-based commands
+- Supports three path types (priority order):
+  1. Absolute paths - Used as-is
+  2. Relative to monorepo root - If monorepo configured and file exists there
+  3. Relative to current directory - Fallback
+- Applies to commands: `extract code-examples`, `extract procedures`, `analyze includes`, `analyze usage`, `search find-string`, `compare file-contents`
+- Eliminates need to type full paths when working with monorepo files
+
+#### Internal Packages
+- `internal/config` - Configuration management
+  - Config file loading from `.audit-cli.yaml`
+  - Environment variable support
+  - Monorepo path resolution with priority order
+  - File path resolution with flexible resolution
+- `internal/rst` - Enhanced RST parsing
+  - `FetchRstspec()` - Fetches canonical composable definitions from snooty-parser rstspec.toml
+  - Provides standard composable IDs, titles, defaults, and options
+
 ## [0.1.0] - 2025-12-10
 
 ### Added

@@ -12,6 +12,7 @@ package includes
 import (
 	"fmt"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -44,10 +45,20 @@ Output formats:
   --tree: Show hierarchical tree structure of includes
   --list: Show flat list of all included files
 
-If neither flag is specified, shows a summary with basic statistics.`,
+If neither flag is specified, shows a summary with basic statistics.
+
+File Path Resolution:
+  Paths can be specified as:
+    1. Absolute path: /full/path/to/file.rst
+    2. Relative to monorepo root (if configured): manual/manual/source/file.rst
+    3. Relative to current directory: ./file.rst`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filePath := args[0]
+			// Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+			filePath, err := config.ResolveFilePath(args[0])
+			if err != nil {
+				return err
+			}
 			return runAnalyze(filePath, showTree, showList, verbose)
 		},
 	}

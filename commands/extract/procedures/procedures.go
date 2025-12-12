@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -59,10 +60,20 @@ The output files are named using the format: {heading}-{selection}.rst
 For example: "connect-to-cluster-python.rst", "create-index-drivers.rst"
 
 By default, include directives are preserved in the output. Use --expand-includes
-to inline the content of included files.`,
+to inline the content of included files.
+
+File Path Resolution:
+  Paths can be specified as:
+    1. Absolute path: /full/path/to/file.rst
+    2. Relative to monorepo root (if configured): manual/manual/source/file.rst
+    3. Relative to current directory: ./file.rst`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filePath := args[0]
+			// Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+			filePath, err := config.ResolveFilePath(args[0])
+			if err != nil {
+				return err
+			}
 			return runExtract(filePath, selection, outputDir, dryRun, verbose, expandIncludes, showSteps, showSubProcedures)
 		},
 	}

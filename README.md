@@ -51,6 +51,110 @@ cd audit-cli
 go run main.go [command] [flags]
 ```
 
+## Configuration
+
+### Monorepo Path Configuration
+
+Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`). You can configure the monorepo path in three ways, listed in order of priority:
+
+### 1. Command-Line Argument (Highest Priority)
+
+Pass the path directly to the command:
+
+```bash
+./audit-cli analyze composables /path/to/docs-monorepo
+./audit-cli count tested-examples /path/to/docs-monorepo
+./audit-cli count pages /path/to/docs-monorepo
+```
+
+### 2. Environment Variable
+
+Set the `AUDIT_CLI_MONOREPO_PATH` environment variable:
+
+```bash
+export AUDIT_CLI_MONOREPO_PATH=/path/to/docs-monorepo
+./audit-cli analyze composables
+./audit-cli count tested-examples
+./audit-cli count pages
+```
+
+### 3. Config File (Lowest Priority)
+
+Create a `.audit-cli.yaml` file in either:
+- Current directory: `./.audit-cli.yaml`
+- Home directory: `~/.audit-cli.yaml`
+
+**Config file format:**
+
+```yaml
+monorepo_path: /path/to/docs-monorepo
+```
+
+**Example:**
+
+```bash
+# Create config file
+cat > .audit-cli.yaml << EOF
+monorepo_path: /Users/username/mongodb/docs-monorepo
+EOF
+
+# Now you can run commands without specifying the path
+./audit-cli analyze composables
+./audit-cli count tested-examples --for-product pymongo
+./audit-cli count pages --count-by-project
+```
+
+**Priority Example:**
+
+If you have all three configured, the command-line argument takes precedence:
+
+```bash
+# Config file has: monorepo_path: /config/path
+# Environment has: AUDIT_CLI_MONOREPO_PATH=/env/path
+# Command-line argument: /cmd/path
+
+./audit-cli analyze composables /cmd/path  # Uses /cmd/path
+./audit-cli analyze composables             # Uses /env/path (env overrides config)
+```
+
+### File Path Resolution
+
+File-based commands (e.g., `extract code-examples`, `analyze usage`, `compare file-contents`) support flexible path resolution. Paths can be specified in three ways:
+
+**1. Absolute Path**
+
+```bash
+./audit-cli extract code-examples /full/path/to/file.rst
+./audit-cli analyze usage /full/path/to/includes/fact.rst
+```
+
+**2. Relative to Monorepo Root** (if monorepo is configured)
+
+If you have a monorepo path configured (via config file or environment variable), you can use paths relative to the monorepo root:
+
+```bash
+# With monorepo_path configured as /Users/username/mongodb/docs-monorepo
+./audit-cli extract code-examples manual/manual/source/tutorial.rst
+./audit-cli analyze usage manual/manual/source/includes/fact.rst
+./audit-cli compare file-contents manual/manual/source/file.rst
+```
+
+**3. Relative to Current Directory** (fallback)
+
+If the path doesn't exist relative to the monorepo, it falls back to the current directory:
+
+```bash
+./audit-cli extract code-examples ./local-file.rst
+./audit-cli analyze includes ../other-dir/file.rst
+```
+
+**Priority Order:**
+1. If path is absolute → use as-is
+2. If monorepo is configured and path exists relative to monorepo → use monorepo-relative path
+3. Otherwise → resolve relative to current directory
+
+This makes it convenient to work with files in the monorepo without typing full paths every time!
+
 ## Usage
 
 The CLI is organized into parent commands with subcommands:
@@ -65,7 +169,8 @@ audit-cli
 ├── analyze          # Analyze RST file structures
 │   ├── includes
 │   ├── usage
-│   └── procedures
+│   ├── procedures
+│   └── composables
 ├── compare          # Compare files across versions
 │   └── file-contents
 └── count            # Count code examples and documentation pages
@@ -835,6 +940,214 @@ The parser ensures deterministic results by:
 
 For more details about procedure parsing logic, refer to [docs/PROCEDURE_PARSING.md](docs/PROCEDURE_PARSING.md).
 
+#### `analyze composables`
+
+Analyze composable definitions in `snooty.toml` files across the MongoDB documentation monorepo. This command helps identify consolidation opportunities and track composable usage.
+
+Composables are configuration elements in `snooty.toml` that define content variations for different contexts (e.g., different programming languages, deployment types, or interfaces). They're used in `.. composable-tutorial::` directives to create context-specific documentation.
+
+**Use Cases:**
+
+This command helps writers:
+- Inventory all composables across projects and versions
+- Identify identical composables that could be consolidated across projects
+- Find similar composables with different IDs but overlapping options (potential consolidation candidates)
+- Track where composables are used in RST files
+- Identify unused composables that may be candidates for removal
+- Understand the scope of changes when updating a composable
+
+**Basic Usage:**
+
+```bash
+# Analyze all composables in the monorepo
+./audit-cli analyze composables /path/to/docs-monorepo
+
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli analyze composables
+
+# Analyze composables for a specific project
+./audit-cli analyze composables --for-project atlas
+
+# Analyze only current versions
+./audit-cli analyze composables --current-only
+
+# Show full option details with titles
+./audit-cli analyze composables --verbose
+
+# Find consolidation candidates
+./audit-cli analyze composables --find-similar
+
+# Find where composables are used
+./audit-cli analyze composables --find-usages
+
+# Include canonical rstspec.toml composables
+./audit-cli analyze composables --with-rstspec --find-similar
+
+# Combine flags for comprehensive analysis
+./audit-cli analyze composables --for-project atlas --find-similar --find-usages --verbose
+```
+
+**Flags:**
+
+- `--for-project <project>` - Only analyze composables for a specific project
+- `--current-only` - Only analyze composables in current versions (skips versioned directories)
+- `-v, --verbose` - Show full option details with titles instead of just IDs
+- `--find-similar` - Show identical and similar composables for consolidation
+- `--find-usages` - Show where each composable is used in RST files
+- `--with-rstspec` - Include composables from the canonical rstspec.toml file in the snooty-parser repository
+
+**Output:**
+
+**Default output (summary and table):**
+```
+Composables Analysis
+====================
+
+Total composables found: 24
+
+Composables by ID:
+  - deployment-type: 1
+  - interface: 1
+  - language: 1
+  ...
+
+All Composables
+===============
+
+Project              Version         ID                             Title                          Options
+------------------------------------------------------------------------------------------------------------------------
+atlas                (none)          deployment-type                Deployment Type                atlas, local, self, local-onprem
+atlas                (none)          interface                      Interface                      compass, mongosh, atlas-ui, driver
+atlas                (none)          language                       Language                       c, csharp, cpp, go, java-async, ...
+```
+
+**With `--find-similar`:**
+
+Shows two types of consolidation opportunities:
+
+1. **Identical Composables** - Same ID, title, and options across different projects/versions
+   ```
+   Identical Composables (Consolidation Candidates)
+   ================================================
+
+   ID: connection-mechanism
+   Occurrences: 15
+   Title: Connection Mechanism
+   Default: connection-string
+   Options: connection-string, mongocred
+
+   Found in:
+     - java/current
+     - java/v5.1
+     - kotlin/current
+     ...
+   ```
+
+2. **Similar Composables** - Different IDs but similar option sets (60%+ overlap)
+   ```
+   Similar Composables (Review Recommended)
+   ========================================
+
+   Similar Composables (100.0% similarity)
+   Composables: 2
+
+   Composables in this group:
+
+     1. ID: interface-atlas-only
+        Location: atlas
+        Title: Interface
+        Default: driver
+        Options: atlas-ui, driver, mongosh
+
+     2. ID: interface-local-only
+        Location: atlas
+        Title: Interface
+        Default: driver
+        Options: atlas-ui, driver, mongosh
+   ```
+
+**With `--find-usages`:**
+
+Shows where each composable is used in `.. composable-tutorial::` directives:
+
+```
+Composable Usages
+=================
+
+Composable ID: deployment-type
+Total usages: 28
+
+  atlas: 28 usages
+
+Composable ID: interface
+Total usages: 35
+
+  atlas: 35 usages
+
+Unused Composables
+------------------
+
+  connection-type:
+    - atlas
+```
+
+**With `--verbose` and `--find-usages`:**
+
+Shows file paths where each composable is used:
+
+```
+Composable ID: interface-atlas-only
+Total usages: 1
+
+  atlas: 1 usages
+    - content/atlas/source/atlas-vector-search/tutorials/vector-search-quick-start.txt
+```
+
+**Understanding Composables:**
+
+Composables are defined in `snooty.toml` files:
+```toml
+[[composables]]
+id = "language"
+title = "Language"
+default = "nodejs"
+
+[[composables.options]]
+id = "python"
+title = "Python"
+
+[[composables.options]]
+id = "nodejs"
+title = "Node.js"
+```
+
+They're used in RST files with `.. composable-tutorial::` directives:
+```rst
+.. composable-tutorial::
+   :options: language, interface
+   :defaults: nodejs, driver
+
+   .. procedure::
+      .. step:: Install dependencies
+         .. selected-content::
+            :selections: language=nodejs
+            npm install mongodb
+         .. selected-content::
+            :selections: language=python
+            pip install pymongo
+```
+
+**Consolidation Analysis:**
+
+The command uses Jaccard similarity (intersection / union) to compare option sets between composables with different IDs. A 60% similarity threshold is used to identify potential consolidation candidates.
+
+For example, if you have:
+- `language` with 15 options
+- `language-atlas-only` with 14 options (13 in common with `language`)
+- `language-local-only` with 14 options (13 in common with `language`)
+
+These would be flagged as similar composables (93.3% similarity) and potential consolidation candidates.
+
 ### Compare Commands
 
 #### `compare file-contents`
@@ -1025,14 +1338,17 @@ This command helps writers and maintainers:
 # Get total count of all tested code examples
 ./audit-cli count tested-examples /path/to/docs-monorepo
 
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli count tested-examples
+
 # Count examples for a specific product
-./audit-cli count tested-examples /path/to/docs-monorepo --for-product pymongo
+./audit-cli count tested-examples --for-product pymongo
 
 # Show counts broken down by product
-./audit-cli count tested-examples /path/to/docs-monorepo --count-by-product
+./audit-cli count tested-examples --count-by-product
 
 # Count only source files (exclude .txt and .sh output files)
-./audit-cli count tested-examples /path/to/docs-monorepo --exclude-output
+./audit-cli count tested-examples --exclude-output
 ```
 
 **Flags:**
@@ -1088,20 +1404,23 @@ The command automatically excludes:
 # Get total count of all documentation pages
 ./audit-cli count pages /path/to/docs-monorepo
 
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli count pages
+
 # Count pages for a specific project
-./audit-cli count pages /path/to/docs-monorepo --for-project manual
+./audit-cli count pages --for-project manual
 
 # Show counts broken down by project
-./audit-cli count pages /path/to/docs-monorepo --count-by-project
+./audit-cli count pages --count-by-project
 
 # Exclude specific directories from counting
-./audit-cli count pages /path/to/docs-monorepo --exclude-dirs api-reference,generated
+./audit-cli count pages --exclude-dirs api-reference,generated
 
 # Count only current versions (for versioned projects)
-./audit-cli count pages /path/to/docs-monorepo --current-only
+./audit-cli count pages --current-only
 
 # Show counts by project and version
-./audit-cli count pages /path/to/docs-monorepo --by-version
+./audit-cli count pages --by-version
 
 # Combine flags: count pages for a specific project, excluding certain directories
 ./audit-cli count pages /path/to/docs-monorepo --for-project atlas --exclude-dirs deprecated
@@ -1217,6 +1536,16 @@ audit-cli/
 │   │       └── report.go                    # Report generation
 │   ├── analyze/                             # Analyze parent command
 │   │   ├── analyze.go                       # Parent command definition
+│   │   ├── composables/                     # Composables analysis subcommand
+│   │   │   ├── composables.go               # Command logic
+│   │   │   ├── composables_test.go          # Tests
+│   │   │   ├── analyzer.go                  # Composable analysis logic
+│   │   │   ├── parser.go                    # Snooty.toml parsing
+│   │   │   ├── rstspec_adapter.go           # Rstspec.toml adapter
+│   │   │   ├── rstspec_adapter_test.go      # Rstspec adapter tests
+│   │   │   ├── usage_finder.go              # Usage finding logic
+│   │   │   ├── output.go                    # Output formatting
+│   │   │   └── types.go                     # Type definitions
 │   │   ├── includes/                        # Includes analysis subcommand
 │   │   │   ├── includes.go                  # Command logic
 │   │   │   ├── analyzer.go                  # Include tree building
@@ -1259,6 +1588,9 @@ audit-cli/
 │           ├── output.go                    # Output formatting
 │           └── types.go                     # Type definitions
 ├── internal/                                # Internal packages
+│   ├── config/                              # Configuration management
+│   │   ├── config.go                        # Config loading and path resolution
+│   │   └── config_test.go                   # Config tests
 │   ├── projectinfo/                         # Project structure and info utilities
 │   │   ├── pathresolver.go                  # Core path resolution
 │   │   ├── pathresolver_test.go             # Tests
@@ -1275,6 +1607,8 @@ audit-cli/
 │       ├── get_procedure_variations.go      # Variation extraction logic
 │       ├── get_procedure_variations_test.go # Variation tests
 │       ├── procedure_types.go               # Procedure type definitions
+│       ├── rstspec.go                       # Rstspec.toml fetching and parsing
+│       ├── rstspec_test.go                  # Rstspec tests
 │       └── file_utils.go                    # File utilities
 └── testdata/                                # Test fixtures
     ├── input-files/                         # Test RST files
@@ -1283,14 +1617,17 @@ audit-cli/
     │       ├── includes/                    # Included RST files
     │       └── code-examples/               # Code files for literalinclude
     ├── expected-output/                     # Expected extraction results
+    ├── composables-test/                    # Composables analysis test data
+    │   └── content/                         # Test monorepo structure
     ├── compare/                             # Compare command test data
     │   ├── product/                         # Version structure tests
     │   │   ├── manual/                      # Manual version
     │   │   ├── upcoming/                    # Upcoming version
     │   │   └── v8.0/                        # v8.0 version
     │   └── *.txt                            # Direct comparison tests
-    └── count-test-monorepo/                 # Count command test data
-        └── content/code-examples/tested/    # Tested examples structure
+    ├── count-test-monorepo/                 # Count command test data
+    │   └── content/code-examples/tested/    # Tested examples structure
+    └── search-test-files/                   # Search command test data
 ```
 
 ### Adding New Commands
@@ -1629,6 +1966,30 @@ func traverseDirectory(rootPath string, recursive bool) ([]string, error) {
 }
 ```
 
+**Path Resolution for File-Based Commands:**
+
+Commands that accept file paths should use `config.ResolveFilePath()` to support flexible path resolution:
+
+```go
+import "github.com/grove-platform/audit-cli/internal/config"
+
+RunE: func(cmd *cobra.Command, args []string) error {
+    // Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+    filePath, err := config.ResolveFilePath(args[0])
+    if err != nil {
+        return err
+    }
+
+    // Use the resolved absolute path
+    return processFile(filePath)
+}
+```
+
+This allows users to specify paths as:
+- Absolute: `/full/path/to/file.rst`
+- Monorepo-relative: `manual/manual/source/file.rst` (if monorepo configured)
+- Current directory-relative: `./file.rst`
+
 #### 5. Testing Pattern
 
 Use table-driven tests where appropriate:
@@ -1863,6 +2224,32 @@ used as the base for resolving relative include paths.
 
 ## Internal Packages
 
+### `internal/config`
+
+Provides configuration management for the CLI tool:
+
+- **Config file loading** - Loads `.audit-cli.yaml` from current or home directory
+- **Environment variable support** - Reads `AUDIT_CLI_MONOREPO_PATH` environment variable
+- **Monorepo path resolution** - Resolves monorepo path with priority: CLI arg > env var > config file
+- **File path resolution** - Resolves file paths as absolute, monorepo-relative, or cwd-relative
+
+**Key Functions:**
+- `LoadConfig()` - Loads configuration from file or environment
+- `GetMonorepoPath(cmdLineArg string)` - Resolves monorepo path with priority order
+- `ResolveFilePath(pathArg string)` - Resolves file paths with flexible resolution
+
+**Priority Order for Monorepo Path:**
+1. Command-line argument (highest priority)
+2. Environment variable `AUDIT_CLI_MONOREPO_PATH`
+3. Config file `.audit-cli.yaml` (lowest priority)
+
+**Priority Order for File Paths:**
+1. Absolute path (used as-is)
+2. Relative to monorepo root (if monorepo configured and file exists there)
+3. Relative to current directory (fallback)
+
+See the code in `internal/config/` for implementation details.
+
 ### `internal/projectinfo`
 
 Provides centralized utilities for understanding MongoDB documentation project structure:
@@ -1889,8 +2276,27 @@ Provides reusable utilities for parsing and processing RST files:
 - **Include resolution** - Handles all include directive patterns
 - **Directory traversal** - Recursive file scanning
 - **Directive parsing** - Extracts structured data from RST directives
+- **Procedure parsing** - Parses procedure directives, ordered lists, and variations
+- **Procedure variations** - Extracts variations from composable tutorials and tabs
+- **Rstspec.toml fetching** - Fetches and parses canonical composable definitions from snooty-parser
 - **Template variable resolution** - Resolves YAML-based template variables
 - **Source directory detection** - Finds the documentation root
+
+**Key Functions:**
+- `ParseFileWithIncludes(filePath string)` - Parses RST file with include expansion
+- `ParseDirectives(content string)` - Extracts directive information from RST content
+- `ParseProcedures(filePath string, expandIncludes bool)` - Parses procedures from RST file
+- `GetProcedureVariations(filePath string)` - Extracts procedure variations
+- `FetchRstspec()` - Fetches and parses canonical rstspec.toml from snooty-parser repository
+
+**Rstspec.toml Support:**
+The `FetchRstspec()` function retrieves the canonical composable definitions from the snooty-parser repository. This provides:
+- Standard composable IDs (e.g., `interface`, `language`, `deployment-type`)
+- Composable titles and descriptions
+- Default values for each composable
+- Available options for each composable
+
+This is used by the `analyze composables` command to show canonical definitions alongside project-specific ones.
 
 See the code in `internal/rst/` for implementation details.
 

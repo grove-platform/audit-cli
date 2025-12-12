@@ -10,6 +10,7 @@ This document provides essential context for LLMs performing development tasks i
 - Extract code examples and procedures from RST files
 - Search documentation for patterns
 - Analyze file dependencies and relationships
+- Analyze composable definitions and usage across projects
 - Compare files across documentation versions
 - Count documentation pages and tested code examples
 
@@ -31,13 +32,17 @@ audit-cli/
 │   ├── analyze/              # Analyze RST structures
 │   │   ├── includes/         # Analyze include relationships
 │   │   ├── usage/            # Find file usages
-│   │   └── procedures/       # Analyze procedure variations
+│   │   ├── procedures/       # Analyze procedure variations
+│   │   └── composables/      # Analyze composable definitions and usage
 │   ├── compare/              # Compare files across versions
 │   │   └── file-contents/    # Compare file contents
 │   └── count/                # Count documentation content
 │       ├── tested-examples/  # Count tested code examples
 │       └── pages/            # Count documentation pages
 ├── internal/                 # Internal packages (not importable externally)
+│   ├── config/               # Configuration management
+│   │   ├── config.go         # Config loading from file/env/args
+│   │   └── config_test.go    # Config tests
 │   ├── projectinfo/          # MongoDB docs project structure utilities
 │   │   ├── pathresolver.go  # Path resolution
 │   │   ├── source_finder.go # Source directory detection
@@ -47,7 +52,8 @@ audit-cli/
 │       ├── directive_parser.go # Directive parsing
 │       ├── directive_regex.go  # Regex patterns for directives
 │       ├── parse_procedures.go # Procedure parsing (core logic)
-│       └── get_procedure_variations.go # Variation extraction
+│       ├── get_procedure_variations.go # Variation extraction
+│       └── rstspec.go        # Fetch and parse canonical rstspec.toml
 ├── testdata/                 # Test fixtures (auto-ignored by Go build)
 │   ├── input-files/source/   # Test RST files
 │   ├── expected-output/      # Expected extraction results
@@ -66,6 +72,7 @@ audit-cli/
 - **CLI Framework**: [spf13/cobra](https://github.com/spf13/cobra)
 - **Diff Library**: [aymanbagabas/go-udiff](https://github.com/aymanbagabas/go-udiff)
 - **YAML Parsing**: gopkg.in/yaml.vX
+- **TOML Parsing**: [github.com/BurntSushi/toml](https://github.com/BurntSushi/toml) v1.5.0
 - **Testing**: Go standard library (`testing` package)
 
 Refer to the `go.mod` for version info.
@@ -93,6 +100,14 @@ Refer to the `go.mod` for version info.
 - `.. include::` - Include RST content from other files
 - `.. toctree::` - Table of contents (navigation, not content inclusion)
 
+**Composables**:
+- Defined in `snooty.toml` files at project/version root
+- Canonical definitions also exist in `rstspec.toml` in the snooty-parser repository
+- Used in `.. composable-tutorial::` directives with `:options:` parameter
+- Enable context-specific documentation (e.g., different languages, deployment types)
+- Each composable has an ID, title, default, and list of options
+- The `internal/rst` module provides `FetchRstspec()` to retrieve canonical definitions
+
 ### MongoDB Documentation Structure
 
 **Versioned Projects**: `content/{project}/{version}/source/`
@@ -102,6 +117,83 @@ Refer to the `go.mod` for version info.
 
 **Tested Code Examples**: `content/code-examples/tested/{language}/{product}/`
 - Products: `pymongo`, `mongosh`, `go/driver`, `go/atlas-sdk`, `javascript/driver`, `java/driver-sync`, `csharp/driver`
+
+## Configuration
+
+### Monorepo Path Configuration
+
+Some commands require a monorepo path (`analyze composables`, `count tested-examples`, `count pages`). The path can be configured in three ways, with the following priority (highest to lowest):
+
+1. **Command-line argument** - Passed directly to the command
+2. **Environment variable** - `AUDIT_CLI_MONOREPO_PATH`
+3. **Config file** - `.audit-cli.yaml` in current directory or home directory
+
+**Config File Format** (`.audit-cli.yaml`):
+```yaml
+monorepo_path: /path/to/docs-monorepo
+```
+
+**Config File Locations** (searched in order):
+1. Current directory: `./.audit-cli.yaml`
+2. Home directory: `~/.audit-cli.yaml`
+
+**Implementation**:
+- Config loading is handled by `internal/config` package
+- Commands use `config.GetMonorepoPath(cmdLineArg)` to resolve the path
+- Commands accept 0 or 1 arguments using `cobra.MaximumNArgs(1)`
+- If no path is configured, a helpful error message is displayed
+
+**Example Usage**:
+```go
+// In command RunE function
+var cmdLineArg string
+if len(args) > 0 {
+    cmdLineArg = args[0]
+}
+monorepoPath, err := config.GetMonorepoPath(cmdLineArg)
+if err != nil {
+    return err
+}
+```
+
+### File Path Resolution
+
+File-based commands support flexible path resolution through `config.ResolveFilePath()`. This allows users to specify paths in three ways:
+
+1. **Absolute path** - Used as-is
+2. **Relative to monorepo root** - If monorepo is configured and path exists there
+3. **Relative to current directory** - Fallback if not found in monorepo
+
+**Priority Order**:
+1. If path is absolute → return as-is (after verifying it exists)
+2. If monorepo is configured and path exists relative to monorepo → use monorepo-relative path
+3. Otherwise → resolve relative to current directory
+
+**Implementation**:
+- File path resolution is handled by `config.ResolveFilePath(pathArg)` in `internal/config` package
+- Commands that take file paths should use this function in their `RunE` function
+- The function returns an absolute path or an error if the path doesn't exist
+
+**Example Usage**:
+```go
+// In command RunE function for file-based commands
+RunE: func(cmd *cobra.Command, args []string) error {
+    // Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+    filePath, err := config.ResolveFilePath(args[0])
+    if err != nil {
+        return err
+    }
+    return runCommand(filePath, ...)
+}
+```
+
+**Commands Using File Path Resolution**:
+- `extract code-examples`
+- `extract procedures`
+- `analyze includes`
+- `analyze usage`
+- `search find-string`
+- `compare file-contents`
 
 ## Building and Running
 

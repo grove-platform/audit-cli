@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/grove-platform/audit-cli/internal/projectinfo"
 	"github.com/spf13/cobra"
 )
@@ -82,10 +83,25 @@ The command provides progressive output detail:
   - --show-diff: Include unified diffs (implies --show-paths)
 
 Files that don't exist in certain versions are reported separately and
-do not cause errors.`,
+do not cause errors.
+
+File Path Resolution:
+  Paths can be specified as:
+    1. Absolute path: /full/path/to/file.rst
+    2. Relative to monorepo root (if configured): manual/manual/source/file.rst
+    3. Relative to current directory: ./file.rst`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCompare(args, versions, showPaths, showDiff, verbose)
+			// Resolve file paths (supports absolute, monorepo-relative, or cwd-relative)
+			resolvedArgs := make([]string, len(args))
+			for i, arg := range args {
+				resolved, err := config.ResolveFilePath(arg)
+				if err != nil {
+					return err
+				}
+				resolvedArgs[i] = resolved
+			}
+			return runCompare(resolvedArgs, versions, showPaths, showDiff, verbose)
 		},
 	}
 
