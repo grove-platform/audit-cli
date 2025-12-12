@@ -27,6 +27,7 @@ type ComposableLocation struct {
 	Version    string // Empty for non-versioned projects
 	Composable Composable
 	FilePath   string
+	Source     string // "snooty.toml" or "rstspec.toml"
 }
 
 // ComposableGroup represents a group of similar composables.

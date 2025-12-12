@@ -23,8 +23,12 @@ func PrintResults(result *AnalysisResult, verbose bool, findConsolidationCandida
 		if len(result.IdenticalGroups) > 0 {
 			fmt.Printf("\nIdentical Composables (Consolidation Candidates)\n")
 			fmt.Printf("================================================\n\n")
-			for _, group := range result.IdenticalGroups {
+			for i, group := range result.IdenticalGroups {
 				printComposableGroup(group, true, verbose)
+				// Add separator between groups (but not after the last one)
+				if i < len(result.IdenticalGroups)-1 {
+					fmt.Printf("\n%s\n\n", strings.Repeat("-", 80))
+				}
 			}
 		}
 
@@ -32,8 +36,12 @@ func PrintResults(result *AnalysisResult, verbose bool, findConsolidationCandida
 		if len(result.SimilarGroups) > 0 {
 			fmt.Printf("\nSimilar Composables (Review Recommended)\n")
 			fmt.Printf("========================================\n\n")
-			for _, group := range result.SimilarGroups {
+			for i, group := range result.SimilarGroups {
 				printComposableGroup(group, false, verbose)
+				// Add separator between groups (but not after the last one)
+				if i < len(result.SimilarGroups)-1 {
+					fmt.Printf("\n%s\n\n", strings.Repeat("-", 80))
+				}
 			}
 		}
 	}
@@ -102,11 +110,12 @@ func printComposableGroup(group ComposableGroup, isIdentical bool, verbose bool)
 			if loc.Version != "" {
 				location += "/" + loc.Version
 			}
-			fmt.Printf("  - %s\n", location)
+			fmt.Printf("  - %s (%s)\n", location, loc.Source)
 		}
 	} else {
 		// For similar composables with different IDs, show each one
-		fmt.Printf("Similar Composables (%.1f%% similarity)\n", group.Similarity*100)
+		fmt.Printf("Group: %.1f%% Similarity\n", group.Similarity*100)
+		fmt.Printf("%s\n", strings.Repeat("=", 40))
 		fmt.Printf("Composables: %d\n", len(group.Locations))
 
 		fmt.Printf("\nComposables in this group:\n")
@@ -117,7 +126,7 @@ func printComposableGroup(group ComposableGroup, isIdentical bool, verbose bool)
 			}
 
 			fmt.Printf("\n  %d. ID: %s\n", i+1, loc.Composable.ID)
-			fmt.Printf("     Location: %s\n", location)
+			fmt.Printf("     Location: %s (%s)\n", location, loc.Source)
 			fmt.Printf("     Title: %s\n", loc.Composable.Title)
 			if loc.Composable.Default != "" {
 				fmt.Printf("     Default: %s\n", loc.Composable.Default)
@@ -160,8 +169,8 @@ func printAllComposablesTable(locations []ComposableLocation, verbose bool) {
 
 	if verbose {
 		// Verbose table format with multi-line options
-		fmt.Printf("%-20s %-15s %-30s %-30s %-15s %s\n", "Project", "Version", "ID", "Title", "Default", "Options")
-		fmt.Printf("%s\n", strings.Repeat("-", 140))
+		fmt.Printf("%-20s %-15s %-15s %-30s %-30s %-15s %s\n", "Project", "Version", "Source", "ID", "Title", "Default", "Options")
+		fmt.Printf("%s\n", strings.Repeat("-", 155))
 
 		for i, loc := range sorted {
 			version := loc.Version
@@ -174,9 +183,10 @@ func printAllComposablesTable(locations []ComposableLocation, verbose bool) {
 
 			// Print first line with all columns
 			if len(optionLines) > 0 {
-				fmt.Printf("%-20s %-15s %-30s %-30s %-15s %s\n",
+				fmt.Printf("%-20s %-15s %-15s %-30s %-30s %-15s %s\n",
 					truncate(loc.Project, 20),
 					truncate(version, 15),
+					truncate(loc.Source, 15),
 					truncate(loc.Composable.ID, 30),
 					truncate(loc.Composable.Title, 30),
 					truncate(loc.Composable.Default, 15),
@@ -184,12 +194,13 @@ func printAllComposablesTable(locations []ComposableLocation, verbose bool) {
 
 				// Print continuation lines with options only
 				for j := 1; j < len(optionLines); j++ {
-					fmt.Printf("%-20s %-15s %-30s %-30s %-15s %s\n", "", "", "", "", "", optionLines[j])
+					fmt.Printf("%-20s %-15s %-15s %-30s %-30s %-15s %s\n", "", "", "", "", "", "", optionLines[j])
 				}
 			} else {
-				fmt.Printf("%-20s %-15s %-30s %-30s %-15s\n",
+				fmt.Printf("%-20s %-15s %-15s %-30s %-30s %-15s\n",
 					truncate(loc.Project, 20),
 					truncate(version, 15),
+					truncate(loc.Source, 15),
 					truncate(loc.Composable.ID, 30),
 					truncate(loc.Composable.Title, 30),
 					truncate(loc.Composable.Default, 15))
@@ -197,13 +208,13 @@ func printAllComposablesTable(locations []ComposableLocation, verbose bool) {
 
 			// Add separator line between rows (but not after the last row)
 			if i < len(sorted)-1 {
-				fmt.Printf("%s\n", strings.Repeat("-", 140))
+				fmt.Printf("%s\n", strings.Repeat("-", 155))
 			}
 		}
 	} else {
 		// Compact table format
-		fmt.Printf("%-20s %-15s %-30s %-30s %s\n", "Project", "Version", "ID", "Title", "Options")
-		fmt.Printf("%s\n", strings.Repeat("-", 120))
+		fmt.Printf("%-20s %-15s %-15s %-30s %-30s %s\n", "Project", "Version", "Source", "ID", "Title", "Options")
+		fmt.Printf("%s\n", strings.Repeat("-", 135))
 
 		for _, loc := range sorted {
 			version := loc.Version
@@ -211,9 +222,10 @@ func printAllComposablesTable(locations []ComposableLocation, verbose bool) {
 				version = "(none)"
 			}
 			options := formatOptions(loc.Composable.Options)
-			fmt.Printf("%-20s %-15s %-30s %-30s %s\n",
+			fmt.Printf("%-20s %-15s %-15s %-30s %-30s %s\n",
 				truncate(loc.Project, 20),
 				truncate(version, 15),
+				truncate(loc.Source, 15),
 				truncate(loc.Composable.ID, 30),
 				truncate(loc.Composable.Title, 30),
 				truncate(options, 40))

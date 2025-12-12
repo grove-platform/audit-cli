@@ -873,6 +873,9 @@ This command helps writers:
 # Find where composables are used
 ./audit-cli analyze composables /path/to/docs-monorepo --find-usages
 
+# Include canonical rstspec.toml composables
+./audit-cli analyze composables /path/to/docs-monorepo --with-rstspec --find-consolidation-candidates
+
 # Combine flags for comprehensive analysis
 ./audit-cli analyze composables /path/to/docs-monorepo --for-project atlas --find-consolidation-candidates --find-usages --verbose
 ```
@@ -884,6 +887,7 @@ This command helps writers:
 - `-v, --verbose` - Show full option details with titles instead of just IDs
 - `--find-consolidation-candidates` - Show identical and similar composables for consolidation
 - `--find-usages` - Show where each composable is used in RST files
+- `--with-rstspec` - Include composables from the canonical rstspec.toml file in the snooty-parser repository
 
 **Output:**
 

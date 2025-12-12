@@ -49,7 +49,8 @@ audit-cli/
 │       ├── directive_parser.go # Directive parsing
 │       ├── directive_regex.go  # Regex patterns for directives
 │       ├── parse_procedures.go # Procedure parsing (core logic)
-│       └── get_procedure_variations.go # Variation extraction
+│       ├── get_procedure_variations.go # Variation extraction
+│       └── rstspec.go        # Fetch and parse canonical rstspec.toml
 ├── testdata/                 # Test fixtures (auto-ignored by Go build)
 │   ├── input-files/source/   # Test RST files
 │   ├── expected-output/      # Expected extraction results
@@ -98,9 +99,11 @@ Refer to the `go.mod` for version info.
 
 **Composables**:
 - Defined in `snooty.toml` files at project/version root
+- Canonical definitions also exist in `rstspec.toml` in the snooty-parser repository
 - Used in `.. composable-tutorial::` directives with `:options:` parameter
 - Enable context-specific documentation (e.g., different languages, deployment types)
 - Each composable has an ID, title, default, and list of options
+- The `internal/rst` module provides `FetchRstspec()` to retrieve canonical definitions
 
 ### MongoDB Documentation Structure
 

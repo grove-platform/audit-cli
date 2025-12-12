@@ -107,6 +107,7 @@ func FindSnootyTOMLFiles(monorepoPath string, forProject string, currentOnly boo
 				Version:    versionName,
 				Composable: comp,
 				FilePath:   path,
+				Source:     "snooty.toml",
 			})
 		}
 

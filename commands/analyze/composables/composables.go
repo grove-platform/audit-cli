@@ -32,6 +32,7 @@ import (
 //   - --verbose: Show full option details with titles
 //   - --find-consolidation-candidates: Show identical and similar composables for consolidation
 //   - --find-usages: Show where each composable is used in RST files
+//   - --with-rstspec: Include composables from the canonical rstspec.toml file
 func NewComposablesCommand() *cobra.Command {
 	var (
 		forProject                  string
@@ -39,6 +40,7 @@ func NewComposablesCommand() *cobra.Command {
 		verbose                     bool
 		findConsolidationCandidates bool
 		findUsages                  bool
+		withRstspec                 bool
 	)
 
 	cmd := &cobra.Command{
@@ -64,6 +66,10 @@ With --find-usages, the output also includes:
   - Usage count for each composable
   - File paths where each composable is used in composable-tutorial directives
 
+With --with-rstspec, the analysis also includes:
+  - Composables from the canonical rstspec.toml file in the snooty-parser repository
+  - Helps identify duplication between local snooty.toml files and the canonical definitions
+
 Examples:
   # Analyze all composables in the monorepo
   analyze composables /path/to/docs-monorepo
@@ -83,11 +89,14 @@ Examples:
   # Find where composables are used
   analyze composables /path/to/docs-monorepo --find-usages
 
+  # Include canonical rstspec.toml composables
+  analyze composables /path/to/docs-monorepo --with-rstspec --find-consolidation-candidates
+
   # Combine flags
   analyze composables /path/to/docs-monorepo --for-project atlas --find-consolidation-candidates --find-usages --verbose`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runComposables(args[0], forProject, currentOnly, verbose, findConsolidationCandidates, findUsages)
+			return runComposables(args[0], forProject, currentOnly, verbose, findConsolidationCandidates, findUsages, withRstspec)
 		},
 	}
 
@@ -96,16 +105,28 @@ Examples:
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show full option details with titles")
 	cmd.Flags().BoolVar(&findConsolidationCandidates, "find-consolidation-candidates", false, "Show identical and similar composables for consolidation")
 	cmd.Flags().BoolVar(&findUsages, "find-usages", false, "Show where each composable is used in RST files")
+	cmd.Flags().BoolVar(&withRstspec, "with-rstspec", false, "Include composables from the canonical rstspec.toml file")
 
 	return cmd
 }
 
 // runComposables executes the composables analysis operation.
-func runComposables(monorepoPath string, forProject string, currentOnly bool, verbose bool, findConsolidationCandidates bool, findUsages bool) error {
+func runComposables(monorepoPath string, forProject string, currentOnly bool, verbose bool, findConsolidationCandidates bool, findUsages bool, withRstspec bool) error {
 	// Find all snooty.toml files and extract composables
 	locations, err := FindSnootyTOMLFiles(monorepoPath, forProject, currentOnly)
 	if err != nil {
 		return fmt.Errorf("failed to find snooty.toml files: %w", err)
+	}
+
+	// Fetch rstspec.toml composables if requested
+	if withRstspec {
+		fmt.Println("Fetching composables from rstspec.toml...")
+		rstspecLocations, err := FetchRstspecComposables()
+		if err != nil {
+			return fmt.Errorf("failed to fetch rstspec.toml composables: %w", err)
+		}
+		fmt.Printf("Found %d composables in rstspec.toml\n", len(rstspecLocations))
+		locations = append(locations, rstspecLocations...)
 	}
 
 	if len(locations) == 0 {
