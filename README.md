@@ -53,6 +53,8 @@ go run main.go [command] [flags]
 
 ## Configuration
 
+### Monorepo Path Configuration
+
 Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`). You can configure the monorepo path in three ways, listed in order of priority:
 
 ### 1. Command-Line Argument (Highest Priority)
@@ -114,6 +116,44 @@ If you have all three configured, the command-line argument takes precedence:
 ./audit-cli analyze composables /cmd/path  # Uses /cmd/path
 ./audit-cli analyze composables             # Uses /env/path (env overrides config)
 ```
+
+### File Path Resolution
+
+File-based commands (e.g., `extract code-examples`, `analyze usage`, `compare file-contents`) support flexible path resolution. Paths can be specified in three ways:
+
+**1. Absolute Path**
+
+```bash
+./audit-cli extract code-examples /full/path/to/file.rst
+./audit-cli analyze usage /full/path/to/includes/fact.rst
+```
+
+**2. Relative to Monorepo Root** (if monorepo is configured)
+
+If you have a monorepo path configured (via config file or environment variable), you can use paths relative to the monorepo root:
+
+```bash
+# With monorepo_path configured as /Users/username/mongodb/docs-monorepo
+./audit-cli extract code-examples manual/manual/source/tutorial.rst
+./audit-cli analyze usage manual/manual/source/includes/fact.rst
+./audit-cli compare file-contents manual/manual/source/file.rst
+```
+
+**3. Relative to Current Directory** (fallback)
+
+If the path doesn't exist relative to the monorepo, it falls back to the current directory:
+
+```bash
+./audit-cli extract code-examples ./local-file.rst
+./audit-cli analyze includes ../other-dir/file.rst
+```
+
+**Priority Order:**
+1. If path is absolute → use as-is
+2. If monorepo is configured and path exists relative to monorepo → use monorepo-relative path
+3. Otherwise → resolve relative to current directory
+
+This makes it convenient to work with files in the monorepo without typing full paths every time!
 
 ## Usage
 
@@ -1496,6 +1536,16 @@ audit-cli/
 │   │       └── report.go                    # Report generation
 │   ├── analyze/                             # Analyze parent command
 │   │   ├── analyze.go                       # Parent command definition
+│   │   ├── composables/                     # Composables analysis subcommand
+│   │   │   ├── composables.go               # Command logic
+│   │   │   ├── composables_test.go          # Tests
+│   │   │   ├── analyzer.go                  # Composable analysis logic
+│   │   │   ├── parser.go                    # Snooty.toml parsing
+│   │   │   ├── rstspec_adapter.go           # Rstspec.toml adapter
+│   │   │   ├── rstspec_adapter_test.go      # Rstspec adapter tests
+│   │   │   ├── usage_finder.go              # Usage finding logic
+│   │   │   ├── output.go                    # Output formatting
+│   │   │   └── types.go                     # Type definitions
 │   │   ├── includes/                        # Includes analysis subcommand
 │   │   │   ├── includes.go                  # Command logic
 │   │   │   ├── analyzer.go                  # Include tree building
@@ -1538,6 +1588,9 @@ audit-cli/
 │           ├── output.go                    # Output formatting
 │           └── types.go                     # Type definitions
 ├── internal/                                # Internal packages
+│   ├── config/                              # Configuration management
+│   │   ├── config.go                        # Config loading and path resolution
+│   │   └── config_test.go                   # Config tests
 │   ├── projectinfo/                         # Project structure and info utilities
 │   │   ├── pathresolver.go                  # Core path resolution
 │   │   ├── pathresolver_test.go             # Tests
@@ -1554,6 +1607,8 @@ audit-cli/
 │       ├── get_procedure_variations.go      # Variation extraction logic
 │       ├── get_procedure_variations_test.go # Variation tests
 │       ├── procedure_types.go               # Procedure type definitions
+│       ├── rstspec.go                       # Rstspec.toml fetching and parsing
+│       ├── rstspec_test.go                  # Rstspec tests
 │       └── file_utils.go                    # File utilities
 └── testdata/                                # Test fixtures
     ├── input-files/                         # Test RST files
@@ -1562,14 +1617,17 @@ audit-cli/
     │       ├── includes/                    # Included RST files
     │       └── code-examples/               # Code files for literalinclude
     ├── expected-output/                     # Expected extraction results
+    ├── composables-test/                    # Composables analysis test data
+    │   └── content/                         # Test monorepo structure
     ├── compare/                             # Compare command test data
     │   ├── product/                         # Version structure tests
     │   │   ├── manual/                      # Manual version
     │   │   ├── upcoming/                    # Upcoming version
     │   │   └── v8.0/                        # v8.0 version
     │   └── *.txt                            # Direct comparison tests
-    └── count-test-monorepo/                 # Count command test data
-        └── content/code-examples/tested/    # Tested examples structure
+    ├── count-test-monorepo/                 # Count command test data
+    │   └── content/code-examples/tested/    # Tested examples structure
+    └── search-test-files/                   # Search command test data
 ```
 
 ### Adding New Commands
@@ -1908,6 +1966,30 @@ func traverseDirectory(rootPath string, recursive bool) ([]string, error) {
 }
 ```
 
+**Path Resolution for File-Based Commands:**
+
+Commands that accept file paths should use `config.ResolveFilePath()` to support flexible path resolution:
+
+```go
+import "github.com/grove-platform/audit-cli/internal/config"
+
+RunE: func(cmd *cobra.Command, args []string) error {
+    // Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+    filePath, err := config.ResolveFilePath(args[0])
+    if err != nil {
+        return err
+    }
+
+    // Use the resolved absolute path
+    return processFile(filePath)
+}
+```
+
+This allows users to specify paths as:
+- Absolute: `/full/path/to/file.rst`
+- Monorepo-relative: `manual/manual/source/file.rst` (if monorepo configured)
+- Current directory-relative: `./file.rst`
+
 #### 5. Testing Pattern
 
 Use table-driven tests where appropriate:
@@ -2142,6 +2224,32 @@ used as the base for resolving relative include paths.
 
 ## Internal Packages
 
+### `internal/config`
+
+Provides configuration management for the CLI tool:
+
+- **Config file loading** - Loads `.audit-cli.yaml` from current or home directory
+- **Environment variable support** - Reads `AUDIT_CLI_MONOREPO_PATH` environment variable
+- **Monorepo path resolution** - Resolves monorepo path with priority: CLI arg > env var > config file
+- **File path resolution** - Resolves file paths as absolute, monorepo-relative, or cwd-relative
+
+**Key Functions:**
+- `LoadConfig()` - Loads configuration from file or environment
+- `GetMonorepoPath(cmdLineArg string)` - Resolves monorepo path with priority order
+- `ResolveFilePath(pathArg string)` - Resolves file paths with flexible resolution
+
+**Priority Order for Monorepo Path:**
+1. Command-line argument (highest priority)
+2. Environment variable `AUDIT_CLI_MONOREPO_PATH`
+3. Config file `.audit-cli.yaml` (lowest priority)
+
+**Priority Order for File Paths:**
+1. Absolute path (used as-is)
+2. Relative to monorepo root (if monorepo configured and file exists there)
+3. Relative to current directory (fallback)
+
+See the code in `internal/config/` for implementation details.
+
 ### `internal/projectinfo`
 
 Provides centralized utilities for understanding MongoDB documentation project structure:
@@ -2168,8 +2276,27 @@ Provides reusable utilities for parsing and processing RST files:
 - **Include resolution** - Handles all include directive patterns
 - **Directory traversal** - Recursive file scanning
 - **Directive parsing** - Extracts structured data from RST directives
+- **Procedure parsing** - Parses procedure directives, ordered lists, and variations
+- **Procedure variations** - Extracts variations from composable tutorials and tabs
+- **Rstspec.toml fetching** - Fetches and parses canonical composable definitions from snooty-parser
 - **Template variable resolution** - Resolves YAML-based template variables
 - **Source directory detection** - Finds the documentation root
+
+**Key Functions:**
+- `ParseFileWithIncludes(filePath string)` - Parses RST file with include expansion
+- `ParseDirectives(content string)` - Extracts directive information from RST content
+- `ParseProcedures(filePath string, expandIncludes bool)` - Parses procedures from RST file
+- `GetProcedureVariations(filePath string)` - Extracts procedure variations
+- `FetchRstspec()` - Fetches and parses canonical rstspec.toml from snooty-parser repository
+
+**Rstspec.toml Support:**
+The `FetchRstspec()` function retrieves the canonical composable definitions from the snooty-parser repository. This provides:
+- Standard composable IDs (e.g., `interface`, `language`, `deployment-type`)
+- Composable titles and descriptions
+- Default values for each composable
+- Available options for each composable
+
+This is used by the `analyze composables` command to show canonical definitions alongside project-specific ones.
 
 See the code in `internal/rst/` for implementation details.
 

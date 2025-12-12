@@ -16,6 +16,7 @@ package usage
 import (
 	"fmt"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -76,6 +77,16 @@ This is useful for:
   - Finding all usages of an include file
   - Tracking code example references
 
+File Path Resolution:
+  Paths can be specified as:
+    1. Absolute path: /full/path/to/file.rst
+    2. Relative to monorepo root (if configured): manual/manual/source/file.rst
+    3. Relative to current directory: ./file.rst
+
+  If a monorepo path is configured (via config file or environment variable),
+  relative paths are first tried relative to the monorepo root, then fall back
+  to the current directory.
+
 Examples:
   # Find what uses an include file
   analyze usage /path/to/includes/fact.rst
@@ -108,10 +119,18 @@ Examples:
   analyze usage /path/to/file.rst --directive-type include
 
   # Recursively follow usage tree to find all .txt documentation pages
-  analyze usage /path/to/includes/fact.rst --recursive`,
+  analyze usage /path/to/includes/fact.rst --recursive
+
+  # Use relative path from monorepo (if configured)
+  analyze usage manual/manual/source/includes/fact.rst`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUsage(args[0], format, verbose, countOnly, pathsOnly, summaryOnly, directiveType, includeToctree, excludePattern, recursive)
+			// Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+			filePath, err := config.ResolveFilePath(args[0])
+			if err != nil {
+				return err
+			}
+			return runUsage(filePath, format, verbose, countOnly, pathsOnly, summaryOnly, directiveType, includeToctree, excludePattern, recursive)
 		},
 	}
 

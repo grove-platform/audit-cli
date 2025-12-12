@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/grove-platform/audit-cli/internal/rst"
 	"github.com/spf13/cobra"
 )
@@ -58,10 +59,20 @@ and scope maintenance work related to specific changes.
 
 By default, the search is case-insensitive and matches exact words only. Use --case-sensitive
 to make the search case-sensitive, or --partial-match to allow matching the substring as part
-of larger words (e.g., "curl" matching "libcurl").`,
+of larger words (e.g., "curl" matching "libcurl").
+
+File Path Resolution:
+  Paths can be specified as:
+    1. Absolute path: /full/path/to/file.rst
+    2. Relative to monorepo root (if configured): manual/manual/source/file.rst
+    3. Relative to current directory: ./file.rst`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filePath := args[0]
+			// Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+			filePath, err := config.ResolveFilePath(args[0])
+			if err != nil {
+				return err
+			}
 			substring := args[1]
 			return runSearch(filePath, substring, recursive, followIncludes, verbose, caseSensitive, partialMatch)
 		},

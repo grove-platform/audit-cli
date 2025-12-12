@@ -156,6 +156,45 @@ if err != nil {
 }
 ```
 
+### File Path Resolution
+
+File-based commands support flexible path resolution through `config.ResolveFilePath()`. This allows users to specify paths in three ways:
+
+1. **Absolute path** - Used as-is
+2. **Relative to monorepo root** - If monorepo is configured and path exists there
+3. **Relative to current directory** - Fallback if not found in monorepo
+
+**Priority Order**:
+1. If path is absolute → return as-is (after verifying it exists)
+2. If monorepo is configured and path exists relative to monorepo → use monorepo-relative path
+3. Otherwise → resolve relative to current directory
+
+**Implementation**:
+- File path resolution is handled by `config.ResolveFilePath(pathArg)` in `internal/config` package
+- Commands that take file paths should use this function in their `RunE` function
+- The function returns an absolute path or an error if the path doesn't exist
+
+**Example Usage**:
+```go
+// In command RunE function for file-based commands
+RunE: func(cmd *cobra.Command, args []string) error {
+    // Resolve file path (supports absolute, monorepo-relative, or cwd-relative)
+    filePath, err := config.ResolveFilePath(args[0])
+    if err != nil {
+        return err
+    }
+    return runCommand(filePath, ...)
+}
+```
+
+**Commands Using File Path Resolution**:
+- `extract code-examples`
+- `extract procedures`
+- `analyze includes`
+- `analyze usage`
+- `search find-string`
+- `compare file-contents`
+
 ## Building and Running
 
 ### Build from Source

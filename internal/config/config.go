@@ -148,3 +148,64 @@ func CreateSampleConfig(monorepoPath string) error {
 	return nil
 }
 
+// ResolveFilePath resolves a file path that could be:
+//  1. An absolute path (used as-is)
+//  2. A relative path from monorepo root (if monorepo is configured)
+//  3. A relative path from current directory (fallback)
+//
+// Priority order:
+//  1. If path is absolute, return it as-is
+//  2. If monorepo is configured and path exists relative to monorepo, use that
+//  3. Otherwise, resolve relative to current directory
+//
+// Parameters:
+//   - pathArg: The path argument from the command line
+//
+// Returns:
+//   - string: The resolved absolute path
+//   - error: Error if path cannot be resolved or doesn't exist
+func ResolveFilePath(pathArg string) (string, error) {
+	// If path is absolute, use it as-is
+	if filepath.IsAbs(pathArg) {
+		// Verify it exists
+		if _, err := os.Stat(pathArg); err != nil {
+			return "", fmt.Errorf("path does not exist: %s", pathArg)
+		}
+		return pathArg, nil
+	}
+
+	// Try to load config to get monorepo path
+	config, err := LoadConfig()
+	if err == nil && config.MonorepoPath != "" {
+		// Try relative to monorepo
+		monorepoRelative := filepath.Join(config.MonorepoPath, pathArg)
+		if _, err := os.Stat(monorepoRelative); err == nil {
+			// Path exists relative to monorepo, use it
+			absPath, err := filepath.Abs(monorepoRelative)
+			if err != nil {
+				return "", fmt.Errorf("failed to get absolute path: %w", err)
+			}
+			return absPath, nil
+		}
+	}
+
+	// Fallback to relative from current directory
+	absPath, err := filepath.Abs(pathArg)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Verify it exists
+	if _, err := os.Stat(absPath); err != nil {
+		// Provide helpful error message showing what we tried
+		if config != nil && config.MonorepoPath != "" {
+			return "", fmt.Errorf("path not found: %s\n\nTried:\n  - Relative to monorepo: %s\n  - Relative to current directory: %s",
+				pathArg,
+				filepath.Join(config.MonorepoPath, pathArg),
+				absPath)
+		}
+		return "", fmt.Errorf("path does not exist: %s (resolved to: %s)", pathArg, absPath)
+	}
+
+	return absPath, nil
+}
