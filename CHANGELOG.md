@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `--verbose` - Show full option details with titles
     - `--find-consolidation-candidates` - Show identical and similar composables for consolidation
     - `--find-usages` - Show where each composable is used in RST files with file paths
-    - `--show-rstspec` - Show canonical composable definitions from rstspec.toml
+    - `--with-rstspec` - Show canonical composable definitions from rstspec.toml
 
 #### Configuration System
 - Monorepo path configuration via three methods (priority order):
