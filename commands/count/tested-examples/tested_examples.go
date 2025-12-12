@@ -4,6 +4,7 @@ package tested_examples
 import (
 	"fmt"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -44,24 +45,43 @@ By default, returns only a total count of all files.
 
 ` + GetProductList() + `
 
+Monorepo Path Configuration:
+  The monorepo path can be specified in three ways (in order of priority):
+    1. Command-line argument: count tested-examples /path/to/monorepo
+    2. Environment variable: export AUDIT_CLI_MONOREPO_PATH=/path/to/monorepo
+    3. Config file (.audit-cli.yaml):
+       monorepo_path: /path/to/monorepo
+
 Examples:
   # Get total count of all tested code examples
   count tested-examples /path/to/docs-monorepo
 
+  # Use configured monorepo path
+  count tested-examples
+
   # Count examples for a specific product
-  count tested-examples /path/to/docs-monorepo --for-product pymongo
+  count tested-examples --for-product pymongo
 
   # Show counts broken down by product
-  count tested-examples /path/to/docs-monorepo --count-by-product
+  count tested-examples --count-by-product
 
   # Count only source files (exclude .txt and .sh output files)
-  count tested-examples /path/to/docs-monorepo --exclude-output
+  count tested-examples --exclude-output
 
   # Combine flags: count source files for a specific product
-  count tested-examples /path/to/docs-monorepo --for-product pymongo --exclude-output`,
-		Args: cobra.ExactArgs(1),
+  count tested-examples --for-product pymongo --exclude-output`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTestedExamples(args[0], forProduct, countByProduct, excludeOutput)
+			// Resolve monorepo path from args, env, or config
+			var cmdLineArg string
+			if len(args) > 0 {
+				cmdLineArg = args[0]
+			}
+			monorepoPath, err := config.GetMonorepoPath(cmdLineArg)
+			if err != nil {
+				return err
+			}
+			return runTestedExamples(monorepoPath, forProduct, countByProduct, excludeOutput)
 		},
 	}
 

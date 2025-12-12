@@ -40,6 +40,9 @@ audit-cli/
 │       ├── tested-examples/  # Count tested code examples
 │       └── pages/            # Count documentation pages
 ├── internal/                 # Internal packages (not importable externally)
+│   ├── config/               # Configuration management
+│   │   ├── config.go         # Config loading from file/env/args
+│   │   └── config_test.go    # Config tests
 │   ├── projectinfo/          # MongoDB docs project structure utilities
 │   │   ├── pathresolver.go  # Path resolution
 │   │   ├── source_finder.go # Source directory detection
@@ -114,6 +117,44 @@ Refer to the `go.mod` for version info.
 
 **Tested Code Examples**: `content/code-examples/tested/{language}/{product}/`
 - Products: `pymongo`, `mongosh`, `go/driver`, `go/atlas-sdk`, `javascript/driver`, `java/driver-sync`, `csharp/driver`
+
+## Configuration
+
+### Monorepo Path Configuration
+
+Some commands require a monorepo path (`analyze composables`, `count tested-examples`, `count pages`). The path can be configured in three ways, with the following priority (highest to lowest):
+
+1. **Command-line argument** - Passed directly to the command
+2. **Environment variable** - `AUDIT_CLI_MONOREPO_PATH`
+3. **Config file** - `.audit-cli.yaml` in current directory or home directory
+
+**Config File Format** (`.audit-cli.yaml`):
+```yaml
+monorepo_path: /path/to/docs-monorepo
+```
+
+**Config File Locations** (searched in order):
+1. Current directory: `./.audit-cli.yaml`
+2. Home directory: `~/.audit-cli.yaml`
+
+**Implementation**:
+- Config loading is handled by `internal/config` package
+- Commands use `config.GetMonorepoPath(cmdLineArg)` to resolve the path
+- Commands accept 0 or 1 arguments using `cobra.MaximumNArgs(1)`
+- If no path is configured, a helpful error message is displayed
+
+**Example Usage**:
+```go
+// In command RunE function
+var cmdLineArg string
+if len(args) > 0 {
+    cmdLineArg = args[0]
+}
+monorepoPath, err := config.GetMonorepoPath(cmdLineArg)
+if err != nil {
+    return err
+}
+```
 
 ## Building and Running
 

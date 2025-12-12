@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -53,30 +54,49 @@ Each directory under content/ represents a different product/project.
 
 By default, returns only a total count of all pages.
 
+Monorepo Path Configuration:
+  The monorepo path can be specified in three ways (in order of priority):
+    1. Command-line argument: count pages /path/to/monorepo
+    2. Environment variable: export AUDIT_CLI_MONOREPO_PATH=/path/to/monorepo
+    3. Config file (.audit-cli.yaml):
+       monorepo_path: /path/to/monorepo
+
 Examples:
   # Get total count of all documentation pages
   count pages /path/to/docs-monorepo
 
+  # Use configured monorepo path
+  count pages
+
   # Count pages for a specific project
-  count pages /path/to/docs-monorepo --for-project manual
+  count pages --for-project manual
 
   # Show counts broken down by project
-  count pages /path/to/docs-monorepo --count-by-project
+  count pages --count-by-project
 
   # Exclude specific directories from counting
-  count pages /path/to/docs-monorepo --exclude-dirs api-reference,generated
+  count pages --exclude-dirs api-reference,generated
 
   # Combine flags: count pages for a specific project, excluding certain directories
-  count pages /path/to/docs-monorepo --for-project atlas --exclude-dirs deprecated
+  count pages --for-project atlas --exclude-dirs deprecated
 
   # Count only current versions
-  count pages /path/to/docs-monorepo --current-only
+  count pages --current-only
 
   # Show counts by version
-  count pages /path/to/docs-monorepo --by-version`,
-		Args: cobra.ExactArgs(1),
+  count pages --by-version`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPages(args[0], forProject, countByProject, excludeDirs, currentOnly, byVersion)
+			// Resolve monorepo path from args, env, or config
+			var cmdLineArg string
+			if len(args) > 0 {
+				cmdLineArg = args[0]
+			}
+			monorepoPath, err := config.GetMonorepoPath(cmdLineArg)
+			if err != nil {
+				return err
+			}
+			return runPages(monorepoPath, forProject, countByProject, excludeDirs, currentOnly, byVersion)
 		},
 	}
 

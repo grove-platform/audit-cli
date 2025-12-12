@@ -51,6 +51,70 @@ cd audit-cli
 go run main.go [command] [flags]
 ```
 
+## Configuration
+
+Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`). You can configure the monorepo path in three ways, listed in order of priority:
+
+### 1. Command-Line Argument (Highest Priority)
+
+Pass the path directly to the command:
+
+```bash
+./audit-cli analyze composables /path/to/docs-monorepo
+./audit-cli count tested-examples /path/to/docs-monorepo
+./audit-cli count pages /path/to/docs-monorepo
+```
+
+### 2. Environment Variable
+
+Set the `AUDIT_CLI_MONOREPO_PATH` environment variable:
+
+```bash
+export AUDIT_CLI_MONOREPO_PATH=/path/to/docs-monorepo
+./audit-cli analyze composables
+./audit-cli count tested-examples
+./audit-cli count pages
+```
+
+### 3. Config File (Lowest Priority)
+
+Create a `.audit-cli.yaml` file in either:
+- Current directory: `./.audit-cli.yaml`
+- Home directory: `~/.audit-cli.yaml`
+
+**Config file format:**
+
+```yaml
+monorepo_path: /path/to/docs-monorepo
+```
+
+**Example:**
+
+```bash
+# Create config file
+cat > .audit-cli.yaml << EOF
+monorepo_path: /Users/username/mongodb/docs-monorepo
+EOF
+
+# Now you can run commands without specifying the path
+./audit-cli analyze composables
+./audit-cli count tested-examples --for-product pymongo
+./audit-cli count pages --count-by-project
+```
+
+**Priority Example:**
+
+If you have all three configured, the command-line argument takes precedence:
+
+```bash
+# Config file has: monorepo_path: /config/path
+# Environment has: AUDIT_CLI_MONOREPO_PATH=/env/path
+# Command-line argument: /cmd/path
+
+./audit-cli analyze composables /cmd/path  # Uses /cmd/path
+./audit-cli analyze composables             # Uses /env/path (env overrides config)
+```
+
 ## Usage
 
 The CLI is organized into parent commands with subcommands:
@@ -858,26 +922,29 @@ This command helps writers:
 # Analyze all composables in the monorepo
 ./audit-cli analyze composables /path/to/docs-monorepo
 
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli analyze composables
+
 # Analyze composables for a specific project
-./audit-cli analyze composables /path/to/docs-monorepo --for-project atlas
+./audit-cli analyze composables --for-project atlas
 
 # Analyze only current versions
-./audit-cli analyze composables /path/to/docs-monorepo --current-only
+./audit-cli analyze composables --current-only
 
 # Show full option details with titles
-./audit-cli analyze composables /path/to/docs-monorepo --verbose
+./audit-cli analyze composables --verbose
 
 # Find consolidation candidates
-./audit-cli analyze composables /path/to/docs-monorepo --find-consolidation-candidates
+./audit-cli analyze composables --find-consolidation-candidates
 
 # Find where composables are used
-./audit-cli analyze composables /path/to/docs-monorepo --find-usages
+./audit-cli analyze composables --find-usages
 
 # Include canonical rstspec.toml composables
-./audit-cli analyze composables /path/to/docs-monorepo --with-rstspec --find-consolidation-candidates
+./audit-cli analyze composables --with-rstspec --find-consolidation-candidates
 
 # Combine flags for comprehensive analysis
-./audit-cli analyze composables /path/to/docs-monorepo --for-project atlas --find-consolidation-candidates --find-usages --verbose
+./audit-cli analyze composables --for-project atlas --find-consolidation-candidates --find-usages --verbose
 ```
 
 **Flags:**
@@ -1231,14 +1298,17 @@ This command helps writers and maintainers:
 # Get total count of all tested code examples
 ./audit-cli count tested-examples /path/to/docs-monorepo
 
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli count tested-examples
+
 # Count examples for a specific product
-./audit-cli count tested-examples /path/to/docs-monorepo --for-product pymongo
+./audit-cli count tested-examples --for-product pymongo
 
 # Show counts broken down by product
-./audit-cli count tested-examples /path/to/docs-monorepo --count-by-product
+./audit-cli count tested-examples --count-by-product
 
 # Count only source files (exclude .txt and .sh output files)
-./audit-cli count tested-examples /path/to/docs-monorepo --exclude-output
+./audit-cli count tested-examples --exclude-output
 ```
 
 **Flags:**
@@ -1294,20 +1364,23 @@ The command automatically excludes:
 # Get total count of all documentation pages
 ./audit-cli count pages /path/to/docs-monorepo
 
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli count pages
+
 # Count pages for a specific project
-./audit-cli count pages /path/to/docs-monorepo --for-project manual
+./audit-cli count pages --for-project manual
 
 # Show counts broken down by project
-./audit-cli count pages /path/to/docs-monorepo --count-by-project
+./audit-cli count pages --count-by-project
 
 # Exclude specific directories from counting
-./audit-cli count pages /path/to/docs-monorepo --exclude-dirs api-reference,generated
+./audit-cli count pages --exclude-dirs api-reference,generated
 
 # Count only current versions (for versioned projects)
-./audit-cli count pages /path/to/docs-monorepo --current-only
+./audit-cli count pages --current-only
 
 # Show counts by project and version
-./audit-cli count pages /path/to/docs-monorepo --by-version
+./audit-cli count pages --by-version
 
 # Combine flags: count pages for a specific project, excluding certain directories
 ./audit-cli count pages /path/to/docs-monorepo --for-project atlas --exclude-dirs deprecated

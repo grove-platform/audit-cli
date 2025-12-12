@@ -9,6 +9,7 @@ package composables
 import (
 	"fmt"
 
+	"github.com/grove-platform/audit-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -70,33 +71,52 @@ With --with-rstspec, the analysis also includes:
   - Composables from the canonical rstspec.toml file in the snooty-parser repository
   - Helps identify duplication between local snooty.toml files and the canonical definitions
 
+Monorepo Path Configuration:
+  The monorepo path can be specified in three ways (in order of priority):
+    1. Command-line argument: analyze composables /path/to/monorepo
+    2. Environment variable: export AUDIT_CLI_MONOREPO_PATH=/path/to/monorepo
+    3. Config file (.audit-cli.yaml):
+       monorepo_path: /path/to/monorepo
+
 Examples:
   # Analyze all composables in the monorepo
   analyze composables /path/to/docs-monorepo
 
+  # Use configured monorepo path
+  analyze composables
+
   # Analyze composables for a specific project
-  analyze composables /path/to/docs-monorepo --for-project manual
+  analyze composables --for-project manual
 
   # Analyze only current versions
-  analyze composables /path/to/docs-monorepo --current-only
+  analyze composables --current-only
 
   # Show full option details
-  analyze composables /path/to/docs-monorepo --verbose
+  analyze composables --verbose
 
   # Find consolidation candidates
-  analyze composables /path/to/docs-monorepo --find-consolidation-candidates
+  analyze composables --find-consolidation-candidates
 
   # Find where composables are used
-  analyze composables /path/to/docs-monorepo --find-usages
+  analyze composables --find-usages
 
   # Include canonical rstspec.toml composables
-  analyze composables /path/to/docs-monorepo --with-rstspec --find-consolidation-candidates
+  analyze composables --with-rstspec --find-consolidation-candidates
 
   # Combine flags
-  analyze composables /path/to/docs-monorepo --for-project atlas --find-consolidation-candidates --find-usages --verbose`,
-		Args: cobra.ExactArgs(1),
+  analyze composables --for-project atlas --find-consolidation-candidates --find-usages --verbose`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runComposables(args[0], forProject, currentOnly, verbose, findConsolidationCandidates, findUsages, withRstspec)
+			// Resolve monorepo path from args, env, or config
+			var cmdLineArg string
+			if len(args) > 0 {
+				cmdLineArg = args[0]
+			}
+			monorepoPath, err := config.GetMonorepoPath(cmdLineArg)
+			if err != nil {
+				return err
+			}
+			return runComposables(monorepoPath, forProject, currentOnly, verbose, findConsolidationCandidates, findUsages, withRstspec)
 		},
 	}
 
