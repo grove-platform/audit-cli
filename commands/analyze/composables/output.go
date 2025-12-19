@@ -12,7 +12,8 @@ func PrintResults(result *AnalysisResult, verbose bool, findSimilar bool, findUs
 	fmt.Printf("Composables Analysis\n")
 	fmt.Printf("====================\n\n")
 
-	fmt.Printf("Total composables found: %d\n\n", len(result.AllComposables))
+	fmt.Printf("Total composable definitions found: %d\n", len(result.AllComposables))
+	fmt.Printf("(Each [[composables]] stanza in snooty.toml/rstspec.toml files)\n\n")
 
 	// Print summary by ID
 	printSummaryByID(result)
@@ -349,6 +350,17 @@ func findCommonOptions(locations []ComposableLocation) []ComposableOption {
 
 // printUsageInformation prints usage information for composables.
 func printUsageInformation(composables []ComposableLocation, usages map[string]*ComposableUsage, verbose bool) {
+	// Calculate total unique pages across all composables
+	uniquePages := make(map[string]bool)
+	for _, usage := range usages {
+		for _, filePath := range usage.FilePaths {
+			uniquePages[filePath] = true
+		}
+	}
+
+	// Print total unique pages count
+	fmt.Printf("Total unique pages using composables: %d\n\n", len(uniquePages))
+
 	// Group usages by composable ID
 	usagesByID := make(map[string][]*ComposableUsage)
 	for _, usage := range usages {
