@@ -26,6 +26,11 @@ var IncludeDirectiveRegex = regexp.MustCompile(`^\.\.\s+include::\s+(.+)$`)
 // Example: .. literalinclude:: /path/to/file.py
 var LiteralIncludeDirectiveRegex = regexp.MustCompile(`^\.\.\s+literalinclude::\s+(.+)$`)
 
+// CodeDirectiveRegex matches .. code:: directives in RST files.
+// This is a shorter alias for code-block in standard reStructuredText.
+// Example: .. code:: python
+var CodeDirectiveRegex = regexp.MustCompile(`^\.\.\s+code::\s*(.*)$`)
+
 // IOCodeBlockDirectiveRegex matches .. io-code-block:: directives in RST files.
 // Example: .. io-code-block::
 var IOCodeBlockDirectiveRegex = regexp.MustCompile(`^\.\.\s+io-code-block::`)
@@ -65,4 +70,25 @@ var ComposableTutorialDirectiveRegex = regexp.MustCompile(`^\.\.\s+composable-tu
 // SelectedContentDirectiveRegex matches .. selected-content:: directives in RST files.
 // Example: .. selected-content::
 var SelectedContentDirectiveRegex = regexp.MustCompile(`^\.\.\s+selected-content::`)
+
+// RST Directive Option Regular Expressions
+//
+// These patterns match directive options (lines starting with :option-name:).
+// Options appear indented under directives and provide configuration.
+
+// TabIDOptionRegex matches :tabid: options in RST files.
+// Example: :tabid: python
+var TabIDOptionRegex = regexp.MustCompile(`^\s+:tabid:\s*(.*)$`)
+
+// OptionsOptionRegex matches :options: options in RST files (used in composable-tutorial).
+// Example: :options: language
+var OptionsOptionRegex = regexp.MustCompile(`^\s+:options:\s*(.*)$`)
+
+// SelectionsOptionRegex matches :selections: options in RST files (used in selected-content).
+// Example: :selections: python
+var SelectionsOptionRegex = regexp.MustCompile(`^\s+:selections:\s*(.*)$`)
+
+// LanguageOptionRegex matches :language: options in RST files.
+// Example: :language: python
+var LanguageOptionRegex = regexp.MustCompile(`^\s+:language:\s*(.*)$`)
 

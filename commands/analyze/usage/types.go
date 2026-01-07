@@ -1,5 +1,16 @@
 package usage
 
+import "github.com/grove-platform/audit-cli/internal/rst"
+
+// ValidDirectiveTypes is the list of directive types supported by usage analysis.
+// Uses the canonical constants from internal/rst.
+var ValidDirectiveTypes = []rst.DirectiveType{
+	rst.Include,
+	rst.LiteralInclude,
+	rst.IoCodeBlock,
+	rst.Toctree,
+}
+
 // UsageAnalysis contains the results of analyzing which files use a target file.
 //
 // This structure holds both a flat list of files that use the target and a hierarchical
@@ -33,8 +44,8 @@ type FileUsage struct {
 	FilePath string `json:"file_path"`
 
 	// DirectiveType is the type of directive used to reference the file
-	// Possible values: "include", "literalinclude", "io-code-block", "toctree"
-	DirectiveType string `json:"directive_type"`
+	// Uses rst.DirectiveType constants: Include, LiteralInclude, IoCodeBlock, Toctree
+	DirectiveType rst.DirectiveType `json:"directive_type"`
 
 	// UsagePath is the path used in the directive (as written in the file)
 	UsagePath string `json:"usage_path"`
@@ -52,7 +63,8 @@ type UsageNode struct {
 	FilePath string
 
 	// DirectiveType is the type of directive used to reference the file
-	DirectiveType string
+	// Uses rst.DirectiveType constants: Include, LiteralInclude, IoCodeBlock, Toctree
+	DirectiveType rst.DirectiveType
 
 	// UsagePath is the path used in the directive
 	UsagePath string
@@ -71,7 +83,8 @@ type GroupedFileUsage struct {
 	FilePath string
 
 	// DirectiveType is the type of directive used
-	DirectiveType string
+	// Uses rst.DirectiveType constants: Include, LiteralInclude, IoCodeBlock, Toctree
+	DirectiveType rst.DirectiveType
 
 	// Usages is the list of all usages from this file
 	Usages []FileUsage

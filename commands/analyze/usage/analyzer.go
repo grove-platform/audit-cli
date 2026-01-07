@@ -188,10 +188,10 @@ func AnalyzeUsageRecursive(targetFile string, includeToctree bool, verbose bool,
 	var allUsages []FileUsage
 	for txtFile := range txtFilesSet {
 		// Create a simple FileUsage entry for each .txt file
-		// We use "include" as a generic directive type since we're showing the final pages
+		// We use rst.Include as a generic directive type since we're showing the final pages
 		allUsages = append(allUsages, FileUsage{
 			FilePath:      txtFile,
-			DirectiveType: "include",
+			DirectiveType: rst.Include,
 			UsagePath:     txtFile,
 			LineNumber:    0,
 		})
@@ -352,7 +352,7 @@ func findUsagesInFile(filePath, targetFile, sourceDir string, includeToctree boo
 			if referencesTarget(refPath, targetFile, sourceDir, filePath) {
 				usages = append(usages, FileUsage{
 					FilePath:      filePath,
-					DirectiveType: "include",
+					DirectiveType: rst.Include,
 					UsagePath:     refPath,
 					LineNumber:    lineNum,
 				})
@@ -366,7 +366,7 @@ func findUsagesInFile(filePath, targetFile, sourceDir string, includeToctree boo
 			if referencesTarget(refPath, targetFile, sourceDir, filePath) {
 				usages = append(usages, FileUsage{
 					FilePath:      filePath,
-					DirectiveType: "literalinclude",
+					DirectiveType: rst.LiteralInclude,
 					UsagePath:     refPath,
 					LineNumber:    lineNum,
 				})
@@ -382,7 +382,7 @@ func findUsagesInFile(filePath, targetFile, sourceDir string, includeToctree boo
 				if referencesTarget(refPath, targetFile, sourceDir, filePath) {
 					usages = append(usages, FileUsage{
 						FilePath:      filePath,
-						DirectiveType: "io-code-block",
+						DirectiveType: rst.IoCodeBlock,
 						UsagePath:     refPath,
 						LineNumber:    ioCodeBlockStartLine,
 					})
@@ -396,7 +396,7 @@ func findUsagesInFile(filePath, targetFile, sourceDir string, includeToctree boo
 				if referencesTarget(refPath, targetFile, sourceDir, filePath) {
 					usages = append(usages, FileUsage{
 						FilePath:      filePath,
-						DirectiveType: "io-code-block",
+						DirectiveType: rst.IoCodeBlock,
 						UsagePath:     refPath,
 						LineNumber:    ioCodeBlockStartLine,
 					})
@@ -418,7 +418,7 @@ func findUsagesInFile(filePath, targetFile, sourceDir string, includeToctree boo
 			if referencesToctreeTarget(docName, targetFile, sourceDir, filePath) {
 				usages = append(usages, FileUsage{
 					FilePath:      filePath,
-					DirectiveType: "toctree",
+					DirectiveType: rst.Toctree,
 					UsagePath:     docName,
 					LineNumber:    toctreeStartLine,
 				})
@@ -649,7 +649,7 @@ func referencesToctreeTarget(docName, targetFile, sourceDir, currentFile string)
 //
 // Returns:
 //   - *UsageAnalysis: A new analysis with filtered results
-func FilterByDirectiveType(analysis *UsageAnalysis, directiveType string) *UsageAnalysis {
+func FilterByDirectiveType(analysis *UsageAnalysis, directiveType rst.DirectiveType) *UsageAnalysis {
 	filtered := &UsageAnalysis{
 		TargetFile: analysis.TargetFile,
 		SourceDir:  analysis.SourceDir,
@@ -700,7 +700,7 @@ func GroupUsagesByFile(usages []FileUsage) []GroupedFileUsage {
 	// Group by file path and directive type
 	type groupKey struct {
 		filePath      string
-		directiveType string
+		directiveType rst.DirectiveType
 	}
 	groups := make(map[groupKey][]FileUsage)
 

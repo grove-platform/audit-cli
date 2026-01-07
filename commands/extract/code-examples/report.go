@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // PrintReport prints the extraction report to stdout.
@@ -59,7 +61,7 @@ func PrintReport(report *Report, verbose bool) {
 	if len(report.DirectiveCounts) > 0 {
 		fmt.Println("\nCode Examples by Directive Type:")
 
-		directives := []DirectiveType{CodeBlock, LiteralInclude, IoCodeBlock}
+		directives := []rst.DirectiveType{rst.CodeBlock, rst.LiteralInclude, rst.IoCodeBlock}
 		for _, directive := range directives {
 			if count, exists := report.DirectiveCounts[directive]; exists {
 				fmt.Printf("  %-20s: %d\n", directive, count)
@@ -82,7 +84,7 @@ func PrintReport(report *Report, verbose bool) {
 
 			if len(stats.DirectiveCounts) > 0 {
 				fmt.Println("    Directives:")
-				directives := []DirectiveType{CodeBlock, LiteralInclude, IoCodeBlock}
+				directives := []rst.DirectiveType{rst.CodeBlock, rst.LiteralInclude, rst.IoCodeBlock}
 				for _, directive := range directives {
 					if count, exists := stats.DirectiveCounts[directive]; exists {
 						fmt.Printf("      %-20s: %d\n", directive, count)

@@ -13,6 +13,7 @@ This document provides essential context for LLMs performing development tasks i
 - Analyze composable definitions and usage across projects
 - Compare files across documentation versions
 - Count documentation pages and tested code examples
+- Generate reports on testable code examples from analytics data
 
 **Target Users**: MongoDB technical writers performing maintenance, scoping work, and reporting.
 
@@ -36,29 +37,41 @@ audit-cli/
 │   │   └── composables/      # Analyze composable definitions and usage
 │   ├── compare/              # Compare files across versions
 │   │   └── file-contents/    # Compare file contents
-│   └── count/                # Count documentation content
-│       ├── tested-examples/  # Count tested code examples
-│       └── pages/            # Count documentation pages
+│   ├── count/                # Count documentation content
+│   │   ├── tested-examples/  # Count tested code examples
+│   │   └── pages/            # Count documentation pages
+│   └── report/               # Generate reports from documentation data
+│       └── testable-code/    # Analyze testable code examples from analytics
 ├── internal/                 # Internal packages (not importable externally)
 │   ├── config/               # Configuration management
 │   │   ├── config.go         # Config loading from file/env/args
-│   │   └── config_test.go    # Config tests
+│   │   ├── config_test.go    # Config tests
+│   │   └── url_mapping.go    # URL-to-source-file mapping via Snooty Data API
+│   ├── language/             # Programming language utilities
+│   │   ├── language.go       # Language normalization, extensions, products
+│   │   └── language_test.go  # Language tests
 │   ├── projectinfo/          # MongoDB docs project structure utilities
-│   │   ├── pathresolver.go  # Path resolution
-│   │   ├── source_finder.go # Source directory detection
+│   │   ├── pathresolver.go   # Path resolution
+│   │   ├── products.go       # Content directory to product mapping
+│   │   ├── source_finder.go  # Source directory detection
 │   │   └── version_resolver.go # Version path resolution
-│   └── rst/                  # RST parsing utilities
-│       ├── parser.go         # Generic parsing with includes
-│       ├── directive_parser.go # Directive parsing
-│       ├── directive_regex.go  # Regex patterns for directives
-│       ├── parse_procedures.go # Procedure parsing (core logic)
-│       ├── get_procedure_variations.go # Variation extraction
-│       └── rstspec.go        # Fetch and parse canonical rstspec.toml
+│   ├── rst/                  # RST parsing utilities
+│   │   ├── parser.go         # Generic parsing with includes
+│   │   ├── directive_parser.go # Directive parsing with language resolution
+│   │   ├── directive_regex.go  # Regex patterns for directives
+│   │   ├── parse_procedures.go # Procedure parsing (core logic)
+│   │   ├── get_procedure_variations.go # Variation extraction
+│   │   ├── rstspec.go        # Fetch and parse canonical rstspec.toml
+│   │   └── yaml_steps_parser.go # Parse YAML steps files for code examples
+│   └── snooty/               # Snooty.toml parsing utilities
+│       ├── snooty.go         # Parse snooty.toml, find project config
+│       └── snooty_test.go    # Snooty tests
 ├── testdata/                 # Test fixtures (auto-ignored by Go build)
 │   ├── input-files/source/   # Test RST files
 │   ├── expected-output/      # Expected extraction results
 │   ├── compare/              # Compare command test data
-│   └── count-test-monorepo/  # Count command test data
+│   ├── count-test-monorepo/  # Count command test data
+│   └── testable-code-test/   # Testable code report test data
 ├── bin/                      # Build output directory
 ├── docs/                     # Additional documentation
 │   └── PROCEDURE_PARSING.md  # Detailed procedure parsing logic
@@ -392,6 +405,103 @@ func NewExtractCommand() *cobra.Command {
 - Separate output logic into `output.go` or `report.go`
 - Support multiple output formats (text, JSON) where applicable
 - Use consistent formatting (headers with `=` separators, indentation)
+
+### Network Request Caching
+
+All network requests to external APIs should implement caching to avoid repeated requests and support offline usage. The caching pattern is implemented in `internal/config/url_mapping.go` (for Snooty Data API) and `internal/rst/rstspec.go` (for rstspec.toml).
+
+**Cache Location**: `~/.audit-cli/` directory
+- URL mapping cache: `~/.audit-cli/url-mapping-cache.json`
+- Rstspec cache: `~/.audit-cli/rstspec-cache.json`
+
+**Cache TTL**: 24 hours (configurable per cache type)
+
+**Implementation Pattern**:
+
+1. **Define cache constants**:
+```go
+const CacheTTL = 24 * time.Hour
+const CacheDir = ".audit-cli"
+const CacheFileName = "my-cache.json"
+```
+
+2. **Create cache struct** with timestamp and data:
+```go
+type MyCache struct {
+    Timestamp time.Time `json:"timestamp"`
+    Data      MyData    `json:"data"`
+}
+```
+
+3. **Implement cache functions**:
+```go
+// getCachePath returns the path to the cache file
+func getCachePath() (string, error) {
+    homeDir, err := os.UserHomeDir()
+    if err != nil {
+        return "", fmt.Errorf("failed to get home directory: %w", err)
+    }
+    return filepath.Join(homeDir, CacheDir, CacheFileName), nil
+}
+
+// loadCache loads from cache, returns error if missing or expired
+func loadCache() (*MyData, error) {
+    // Read file, unmarshal JSON, check TTL
+}
+
+// saveCache saves data to cache with current timestamp
+func saveCache(data *MyData) error {
+    // Create directory if needed, marshal JSON, write file
+}
+
+// fetchFromAPI fetches fresh data from the network
+func fetchFromAPI() (*MyData, error) {
+    // HTTP request, parse response
+}
+```
+
+4. **Main fetch function with fallback logic**:
+```go
+func FetchData() (*MyData, error) {
+    // Try cache first
+    data, err := loadCache()
+    if err == nil {
+        return data, nil
+    }
+
+    // Cache miss or expired, try network
+    data, fetchErr := fetchFromAPI()
+    if fetchErr != nil {
+        // Network failed - try expired cache as offline fallback
+        // (read cache file without TTL check)
+        if expiredData := loadExpiredCache(); expiredData != nil {
+            fmt.Fprintf(os.Stderr, "Warning: Using expired cache\n")
+            return expiredData, nil
+        }
+        return nil, fetchErr
+    }
+
+    // Save to cache for next time
+    if saveErr := saveCache(data); saveErr != nil {
+        fmt.Fprintf(os.Stderr, "Warning: Could not save cache: %v\n", saveErr)
+    }
+
+    return data, nil
+}
+```
+
+**Key Behaviors**:
+- Cache is stored in user's home directory for persistence across sessions
+- Expired cache is used as fallback when network is unavailable (offline support)
+- Cache save failures are logged as warnings but don't fail the operation
+- JSON format for easy debugging and human readability
+
+**When Adding New Network Calls**:
+1. Follow the pattern above
+2. Add cache file name constant
+3. Implement the four cache functions
+4. Use the same `~/.audit-cli/` directory for consistency
+5. Consider appropriate TTL (24 hours is default, adjust if data changes more/less frequently)
 
 ## Key Design Decisions
 

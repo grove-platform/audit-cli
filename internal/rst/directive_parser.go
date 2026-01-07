@@ -16,18 +16,24 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/grove-platform/audit-cli/internal/language"
 )
 
 // DirectiveType represents the type of reStructuredText directive.
 type DirectiveType string
 
 const (
-	// CodeBlock represents inline code blocks (.. code-block::)
+	// CodeBlock represents inline code blocks (.. code-block:: and .. code::)
 	CodeBlock DirectiveType = "code-block"
 	// LiteralInclude represents external file references (.. literalinclude::)
 	LiteralInclude DirectiveType = "literalinclude"
 	// IoCodeBlock represents input/output examples (.. io-code-block::)
 	IoCodeBlock DirectiveType = "io-code-block"
+	// Include represents content inclusion (.. include::)
+	Include DirectiveType = "include"
+	// Toctree represents table of contents entries (.. toctree::)
+	Toctree DirectiveType = "toctree"
 )
 
 // Directive represents a parsed reStructuredText directive.
@@ -56,6 +62,66 @@ type SubDirective struct {
 	Content  string            // Inline content (if no filepath)
 }
 
+// ResolveLanguage determines the language for a code example directive.
+//
+// The resolution strategy depends on the directive type:
+//   - CodeBlock: Argument is the language (e.g., .. code-block:: python)
+//   - LiteralInclude: Argument is a filepath, infer language from extension
+//   - IoCodeBlock: Use :language: option only (sub-directives handle their own)
+//
+// Returns the normalized language name, or "undefined" if not determinable.
+func (d Directive) ResolveLanguage() string {
+	switch d.Type {
+	case CodeBlock:
+		// For code-block, the argument IS the language
+		return language.Resolve(d.Argument, d.Options["language"], "")
+	case LiteralInclude:
+		// For literalinclude, the argument is a filepath
+		return language.Resolve("", d.Options["language"], d.Argument)
+	case IoCodeBlock:
+		// For io-code-block parent, only check the :language: option
+		// Sub-directives handle their own language resolution
+		return language.Resolve("", d.Options["language"], "")
+	default:
+		return language.Undefined
+	}
+}
+
+// ResolveLanguage determines the language for a sub-directive (input/output).
+//
+// The resolution strategy:
+//  1. Check the sub-directive's :language: option
+//  2. If the sub-directive has a filepath argument, infer from extension
+//  3. Fall back to the parent directive's :language: option
+//  4. Return "undefined" if not determinable
+//
+// Parameters:
+//   - parentOptions: The parent io-code-block's options map (for fallback)
+//
+// Returns the normalized language name, or "undefined" if not determinable.
+func (s SubDirective) ResolveLanguage(parentOptions map[string]string) string {
+	// First try sub-directive's own language option
+	if lang := s.Options["language"]; lang != "" {
+		return language.Resolve("", lang, "")
+	}
+
+	// Then try to infer from filepath if present
+	if s.Argument != "" {
+		if lang := language.GetLanguageFromExtension(s.Argument); lang != "" {
+			return language.Normalize(lang)
+		}
+	}
+
+	// Fall back to parent's language option
+	if parentOptions != nil {
+		if lang := parentOptions["language"]; lang != "" {
+			return language.Resolve("", lang, "")
+		}
+	}
+
+	return language.Undefined
+}
+
 // Regular expressions for directive parsing
 //
 // Note: literalIncludeRegex is imported from directive_regex.go (LiteralIncludeDirectiveRegex)
@@ -66,6 +132,9 @@ var (
 
 	// Matches: .. code-block:: python (language is optional)
 	codeBlockRegex = regexp.MustCompile(`^\.\.\s+code-block::\s*(.*)$`)
+
+	// Alias for the shared code directive regex (shorter form of code-block)
+	codeDirectiveRegex = CodeDirectiveRegex
 
 	// Matches: .. io-code-block:: (strict - must end after directive)
 	// This is different from IOCodeBlockDirectiveRegex which is more permissive
@@ -83,17 +152,20 @@ var (
 	optionRegex = regexp.MustCompile(`^\s+:([^:]+):\s*(.*)$`)
 )
 
-// ParseDirectives parses all directives from an RST file.
+// ParseDirectives parses all directives from an RST or YAML file.
 //
-// This function scans the file line-by-line and extracts all supported directives
-// (literalinclude, code-block, io-code-block). For each directive, it parses:
-//   - The directive type and argument
-//   - All directive options (e.g., :language:, :start-after:)
-//   - The directive content (for code-block and io-code-block)
-//   - Nested directives (for io-code-block)
+// This function extracts all supported code example directives:
+//   - literalinclude: External file references
+//   - code-block: Inline code blocks
+//   - code: Shorter alias for code-block (standard reStructuredText)
+//   - io-code-block: Input/output examples with nested directives
+//   - yaml-code-block: YAML-native code examples (from action: blocks in steps files)
+//
+// For RST files, it scans line-by-line for RST directives.
+// For YAML files, it also parses the legacy action: format used in some steps files.
 //
 // Parameters:
-//   - filePath: Path to the RST file to parse
+//   - filePath: Path to the RST or YAML file to parse
 //
 // Returns:
 //   - []Directive: Slice of all parsed directives in order of appearance
@@ -145,6 +217,22 @@ func ParseDirectives(filePath string) ([]Directive, error) {
 			continue
 		}
 
+		// Check for code directive (shorter alias for code-block in standard RST)
+		if matches := codeDirectiveRegex.FindStringSubmatch(trimmedLine); len(matches) > 1 {
+			directive := Directive{
+				Type:     CodeBlock, // Treat as code-block since they're functionally equivalent
+				Argument: strings.TrimSpace(matches[1]),
+				Options:  make(map[string]string),
+				LineNum:  lineNum,
+			}
+
+			// Parse options and content on following lines
+			firstContentLine := parseDirectiveOptions(scanner, &directive, &lineNum)
+			parseDirectiveContent(scanner, &directive, &lineNum, firstContentLine)
+			directives = append(directives, directive)
+			continue
+		}
+
 		// Check for io-code-block directive
 		if ioCodeBlockRegex.MatchString(trimmedLine) {
 			directive := Directive{
@@ -162,6 +250,13 @@ func ParseDirectives(filePath string) ([]Directive, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	// For YAML files, also parse YAML-native code examples (action: blocks)
+	// This handles the legacy format used in some steps files
+	yamlDirectives, err := ParseYAMLStepsFile(filePath)
+	if err == nil && len(yamlDirectives) > 0 {
+		directives = append(directives, yamlDirectives...)
 	}
 
 	return directives, nil

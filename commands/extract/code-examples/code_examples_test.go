@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // TestLiteralIncludeDirective tests the parsing and extraction of literalinclude directives
@@ -90,7 +92,7 @@ func TestLiteralIncludeDirective(t *testing.T) {
 	}
 
 	// Verify directive counts
-	if count := report.DirectiveCounts[LiteralInclude]; count != 7 {
+	if count := report.DirectiveCounts[rst.LiteralInclude]; count != 7 {
 		t.Errorf("Expected 7 literalinclude directives, got %d", count)
 	}
 }
@@ -240,8 +242,8 @@ func TestNestedCodeBlockDirective(t *testing.T) {
 	}
 
 	// Verify all are code-block directives
-	if report.DirectiveCounts[CodeBlock] != 11 {
-		t.Errorf("Expected 11 code-block directives, got %d", report.DirectiveCounts[CodeBlock])
+	if report.DirectiveCounts[rst.CodeBlock] != 11 {
+		t.Errorf("Expected 11 code-block directives, got %d", report.DirectiveCounts[rst.CodeBlock])
 	}
 
 	// Expected files and their languages
@@ -323,8 +325,8 @@ func TestIoCodeBlockDirective(t *testing.T) {
 	}
 
 	// Verify all are io-code-block directives
-	if report.DirectiveCounts[IoCodeBlock] != 11 {
-		t.Errorf("Expected 11 io-code-block examples, got %d", report.DirectiveCounts[IoCodeBlock])
+	if report.DirectiveCounts[rst.IoCodeBlock] != 11 {
+		t.Errorf("Expected 11 io-code-block examples, got %d", report.DirectiveCounts[rst.IoCodeBlock])
 	}
 
 	// Expected files
@@ -336,12 +338,12 @@ func TestIoCodeBlockDirective(t *testing.T) {
 		// Test 3: Python inline
 		"io-code-block-test.io-code-block.3.input.py",
 		"io-code-block-test.io-code-block.3.output.py",
-		// Test 4: Shell command
+		// Test 4: Shell command with JSON output
 		"io-code-block-test.io-code-block.4.input.sh",
-		"io-code-block-test.io-code-block.4.output.txt",
-		// Test 5: TypeScript
+		"io-code-block-test.io-code-block.4.output.json",
+		// Test 5: TypeScript with JSON output
 		"io-code-block-test.io-code-block.5.input.ts",
-		"io-code-block-test.io-code-block.5.output.txt",
+		"io-code-block-test.io-code-block.5.output.json",
 		// Test 6: Nested in procedure
 		"io-code-block-test.io-code-block.6.input.js",
 		"io-code-block-test.io-code-block.6.output.js",
@@ -460,13 +462,13 @@ func TestRecursiveDirectoryScanning(t *testing.T) {
 	}
 
 	// Verify we have examples from different directive types
-	if report.DirectiveCounts[CodeBlock] == 0 {
+	if report.DirectiveCounts[rst.CodeBlock] == 0 {
 		t.Error("Expected code-block directives to be found")
 	}
-	if report.DirectiveCounts[LiteralInclude] == 0 {
+	if report.DirectiveCounts[rst.LiteralInclude] == 0 {
 		t.Error("Expected literalinclude directives to be found")
 	}
-	if report.DirectiveCounts[IoCodeBlock] == 0 {
+	if report.DirectiveCounts[rst.IoCodeBlock] == 0 {
 		t.Error("Expected io-code-block directives to be found")
 	}
 }
@@ -506,9 +508,9 @@ func TestFollowIncludesWithoutRecursive(t *testing.T) {
 	}
 
 	// Verify the directive type
-	if report.DirectiveCounts[LiteralInclude] != 1 {
+	if report.DirectiveCounts[rst.LiteralInclude] != 1 {
 		t.Errorf("Expected 1 literalinclude directive, got %d",
-			report.DirectiveCounts[LiteralInclude])
+			report.DirectiveCounts[rst.LiteralInclude])
 	}
 }
 
@@ -548,13 +550,13 @@ func TestRecursiveWithFollowIncludes(t *testing.T) {
 	}
 
 	// Verify we have examples from all directive types
-	if report.DirectiveCounts[CodeBlock] == 0 {
+	if report.DirectiveCounts[rst.CodeBlock] == 0 {
 		t.Error("Expected code-block directives to be found")
 	}
-	if report.DirectiveCounts[LiteralInclude] == 0 {
+	if report.DirectiveCounts[rst.LiteralInclude] == 0 {
 		t.Error("Expected literalinclude directives to be found")
 	}
-	if report.DirectiveCounts[IoCodeBlock] == 0 {
+	if report.DirectiveCounts[rst.IoCodeBlock] == 0 {
 		t.Error("Expected io-code-block directives to be found")
 	}
 }

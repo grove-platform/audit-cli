@@ -4,6 +4,7 @@
 // reStructuredText files and extracts code examples from various directives:
 //   - literalinclude: External file references with optional partial extraction
 //   - code-block: Inline code blocks with automatic dedenting
+//   - code: Shorter alias for code-block (standard reStructuredText)
 //   - io-code-block: Input/output examples with nested directives
 //
 // The extracted code examples are written to individual files with standardized naming:
@@ -44,7 +45,7 @@ func NewCodeExamplesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "code-examples [filepath]",
 		Short: "Extract code examples from reStructuredText files",
-		Long: `Extract code examples from reStructuredText directives (code-block, literalinclude, io-code-block)
+		Long: `Extract code examples from reStructuredText directives (code-block, code, literalinclude, io-code-block)
 and output them as individual files.
 
 File Path Resolution:

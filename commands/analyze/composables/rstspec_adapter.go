@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/grove-platform/audit-cli/internal/rst"
+	"github.com/grove-platform/audit-cli/internal/snooty"
 )
 
 // FetchRstspecComposables fetches and parses composables from the canonical rstspec.toml file.
@@ -26,17 +27,17 @@ func FetchRstspecComposables() ([]ComposableLocation, error) {
 	// Convert rstspec composables to ComposableLocation objects
 	locations := make([]ComposableLocation, 0, len(config.Composables))
 	for _, rstspecComp := range config.Composables {
-		// Convert RstspecComposable to Composable
-		composable := Composable{
+		// Convert RstspecComposable to snooty.Composable
+		composable := snooty.Composable{
 			ID:      rstspecComp.ID,
 			Title:   rstspecComp.Title,
 			Default: rstspecComp.Default,
-			Options: make([]ComposableOption, 0, len(rstspecComp.Options)),
+			Options: make([]snooty.ComposableOption, 0, len(rstspecComp.Options)),
 		}
 
 		// Convert options
 		for _, rstspecOpt := range rstspecComp.Options {
-			composable.Options = append(composable.Options, ComposableOption{
+			composable.Options = append(composable.Options, snooty.ComposableOption{
 				ID:    rstspecOpt.ID,
 				Title: rstspecOpt.Title,
 			})

@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/grove-platform/audit-cli/internal/language"
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // WriteCodeExample writes a code example to a file in the output directory.
@@ -92,10 +95,10 @@ func GenerateOutputFilename(example CodeExample) string {
 	sourceBase := filepath.Base(example.SourceFile)
 	sourceBase = strings.TrimSuffix(sourceBase, filepath.Ext(sourceBase))
 
-	extension := GetFileExtensionFromLanguage(example.Language)
+	extension := language.GetExtensionFromLanguage(example.Language)
 
 	// For io-code-block, include the subtype (input/output) in the filename
-	if example.DirectiveName == IoCodeBlock && example.SubType != "" {
+	if example.DirectiveName == rst.IoCodeBlock && example.SubType != "" {
 		filename := fmt.Sprintf("%s.%s.%d.%s%s",
 			sourceBase,
 			example.DirectiveName,

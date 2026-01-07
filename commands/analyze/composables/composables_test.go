@@ -4,6 +4,8 @@ package composables
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/grove-platform/audit-cli/internal/snooty"
 )
 
 // TestFindSnootyTOMLFiles tests finding snooty.toml files in the test monorepo.
@@ -100,7 +102,7 @@ func TestParseSnootyTOML(t *testing.T) {
 	}
 
 	// Check interface composable
-	var interfaceComp *Composable
+	var interfaceComp *snooty.Composable
 	for i := range composables {
 		if composables[i].ID == "interface" {
 			interfaceComp = &composables[i]
@@ -212,20 +214,20 @@ func TestSimilarComposables(t *testing.T) {
 // TestCalculateOptionSimilarity tests the Jaccard similarity calculation.
 func TestCalculateOptionSimilarity(t *testing.T) {
 	// Test identical option sets
-	comp1 := Composable{
+	comp1 := snooty.Composable{
 		ID:    "test1",
 		Title: "Test 1",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "a", Title: "A"},
 			{ID: "b", Title: "B"},
 			{ID: "c", Title: "C"},
 		},
 	}
 
-	comp2 := Composable{
+	comp2 := snooty.Composable{
 		ID:    "test2",
 		Title: "Test 2",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "a", Title: "A"},
 			{ID: "b", Title: "B"},
 			{ID: "c", Title: "C"},
@@ -238,10 +240,10 @@ func TestCalculateOptionSimilarity(t *testing.T) {
 	}
 
 	// Test partial overlap
-	comp3 := Composable{
+	comp3 := snooty.Composable{
 		ID:    "test3",
 		Title: "Test 3",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "a", Title: "A"},
 			{ID: "b", Title: "B"},
 		},
@@ -257,10 +259,10 @@ func TestCalculateOptionSimilarity(t *testing.T) {
 	}
 
 	// Test no overlap
-	comp4 := Composable{
+	comp4 := snooty.Composable{
 		ID:    "test4",
 		Title: "Test 4",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "x", Title: "X"},
 			{ID: "y", Title: "Y"},
 		},
@@ -274,31 +276,31 @@ func TestCalculateOptionSimilarity(t *testing.T) {
 
 // TestComposablesEqual tests the composable equality function.
 func TestComposablesEqual(t *testing.T) {
-	comp1 := Composable{
+	comp1 := snooty.Composable{
 		ID:      "test",
 		Title:   "Test",
 		Default: "option1",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "option1", Title: "Option 1"},
 			{ID: "option2", Title: "Option 2"},
 		},
 	}
 
-	comp2 := Composable{
+	comp2 := snooty.Composable{
 		ID:      "test",
 		Title:   "Test",
 		Default: "option1",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "option1", Title: "Option 1"},
 			{ID: "option2", Title: "Option 2"},
 		},
 	}
 
-	comp3 := Composable{
+	comp3 := snooty.Composable{
 		ID:      "test",
 		Title:   "Test",
 		Default: "option1",
-		Options: []ComposableOption{
+		Options: []snooty.ComposableOption{
 			{ID: "option1", Title: "Option 1"},
 			{ID: "option3", Title: "Option 3"},
 		},
@@ -338,7 +340,7 @@ func TestExtractProjectAndVersion(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		project, version := extractProjectAndVersion(tt.path)
+		project, version := snooty.ExtractProjectAndVersion(tt.path)
 		if project != tt.expectedProject {
 			t.Errorf("For path %s, expected project '%s', got '%s'", tt.path, tt.expectedProject, project)
 		}
@@ -350,7 +352,7 @@ func TestExtractProjectAndVersion(t *testing.T) {
 
 // TestFormatOptionsAsBullets tests the bullet formatting function.
 func TestFormatOptionsAsBullets(t *testing.T) {
-	options := []ComposableOption{
+	options := []snooty.ComposableOption{
 		{ID: "option1", Title: "Option 1"},
 		{ID: "option2", Title: "Option 2"},
 		{ID: "option3", Title: "Option 3"},
@@ -372,7 +374,7 @@ func TestFormatOptionsAsBullets(t *testing.T) {
 
 // TestFormatOptions tests the comma-separated formatting function.
 func TestFormatOptions(t *testing.T) {
-	options := []ComposableOption{
+	options := []snooty.ComposableOption{
 		{ID: "option1", Title: "Option 1"},
 		{ID: "option2", Title: "Option 2"},
 		{ID: "option3", Title: "Option 3"},
