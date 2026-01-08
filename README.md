@@ -1565,6 +1565,35 @@ rank,url
 - `--format, -f <format>` - Output format: `text` (default), `json`, or `csv`
 - `--output, -o <file>` - Output file path (default: stdout)
 - `--details` - Show detailed per-product breakdown (for CSV output, includes per-product columns)
+- `--filter <filter>` - Filter pages by product area (can be specified multiple times)
+- `--list-drivers` - List all available driver filter options from the Snooty Data API
+
+**Filtering:**
+
+Use the `--filter` flag to focus on specific product areas. Multiple filters can be specified to include pages matching any filter.
+
+Available filters:
+- `search` - Pages with "atlas-search" or "search" in URL (excludes vector-search)
+- `vector-search` - Pages with "vector-search" in URL
+- `drivers` - All MongoDB driver documentation pages
+- `driver:<name>` - Specific driver by project name (e.g., `driver:pymongo`, `driver:node`)
+- `mongosh` - MongoDB Shell documentation pages
+
+```bash
+# Filter to only Atlas Search pages
+./audit-cli report testable-code analytics.csv --filter search
+
+# Filter to only PyMongo driver pages
+./audit-cli report testable-code analytics.csv --filter driver:pymongo
+
+# Filter to multiple areas (pages matching any filter are included)
+./audit-cli report testable-code analytics.csv --filter drivers --filter mongosh
+
+# List all available driver filter options
+./audit-cli report testable-code --list-drivers
+```
+
+The `--list-drivers` flag queries the Snooty Data API to show all available driver project names that can be used with the `driver:<name>` filter. Results are cached for 24 hours.
 
 **Testable Products:**
 

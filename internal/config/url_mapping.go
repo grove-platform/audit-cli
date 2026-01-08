@@ -31,9 +31,10 @@ const CacheFileName = "url-mapping-cache.json"
 
 // URLMappingCache represents the cached URL mapping data.
 type URLMappingCache struct {
-	Timestamp time.Time            `json:"timestamp"`
-	Mapping   map[string]string    `json:"mapping"`   // URL slug -> snooty project name
-	Branches  map[string][]string  `json:"branches"`  // project name -> list of version slugs
+	Timestamp   time.Time           `json:"timestamp"`
+	Mapping     map[string]string   `json:"mapping"`      // URL slug -> snooty project name
+	Branches    map[string][]string `json:"branches"`     // project name -> list of version slugs
+	DriverSlugs []string            `json:"driver_slugs"` // URL slugs for driver documentation
 }
 
 // SnootyAPIResponse represents the response from the Snooty Data API.
@@ -43,9 +44,10 @@ type SnootyAPIResponse struct {
 
 // SnootyProject represents a project in the Snooty Data API response.
 type SnootyProject struct {
-	Project  string          `json:"project"`
-	RepoName string          `json:"repoName"`
-	Branches []SnootyBranch  `json:"branches"`
+	Project     string         `json:"project"`
+	DisplayName string         `json:"displayName"`
+	RepoName    string         `json:"repoName"`
+	Branches    []SnootyBranch `json:"branches"`
 }
 
 // SnootyBranch represents a branch in a Snooty project.
@@ -70,6 +72,8 @@ type URLMapping struct {
 	ProjectToContentDir map[string]string
 	// ProjectBranches maps project names to available version slugs
 	ProjectBranches map[string][]string
+	// DriverSlugs contains URL slugs for driver documentation (excludes mongodb-shell)
+	DriverSlugs []string
 	// MonorepoPath is the path to the docs monorepo
 	MonorepoPath string
 }
@@ -168,16 +172,22 @@ func fetchFromAPI() (*URLMappingCache, error) {
 	}
 
 	cache := &URLMappingCache{
-		Timestamp: time.Now(),
-		Mapping:   make(map[string]string),
-		Branches:  make(map[string][]string),
+		Timestamp:   time.Now(),
+		Mapping:     make(map[string]string),
+		Branches:    make(map[string][]string),
+		DriverSlugs: []string{},
 	}
 
 	// Regex to extract URL slug from fullUrl
 	slugRegex := regexp.MustCompile(`/docs/(.+?)/?$`)
 
+	// Track driver slugs using a map to avoid duplicates
+	driverSlugSet := make(map[string]bool)
+
 	for _, project := range apiResp.Data {
 		var versionSlugs []string
+		var baseSlugForProject string
+
 		for _, branch := range project.Branches {
 			if !isActive(branch.Active) {
 				continue
@@ -201,6 +211,7 @@ func fetchFromAPI() (*URLMappingCache, error) {
 				baseSlug := strings.Join(parts[:len(parts)-1], "/")
 				if baseSlug != "" {
 					cache.Mapping[baseSlug] = project.Project
+					baseSlugForProject = baseSlug
 				}
 			}
 			// Also map the full path
@@ -209,9 +220,73 @@ func fetchFromAPI() (*URLMappingCache, error) {
 		if len(versionSlugs) > 0 {
 			cache.Branches[project.Project] = versionSlugs
 		}
+
+		// Identify driver projects by URL pattern or displayName
+		// Exclude mongodb-shell as it's not a driver
+		if baseSlugForProject != "" && project.Project != "mongodb-shell" {
+			if isDriverSlug(baseSlugForProject, project.DisplayName) {
+				driverSlugSet[baseSlugForProject] = true
+			}
+		}
 	}
 
+	// Convert driver slug set to sorted slice
+	for slug := range driverSlugSet {
+		cache.DriverSlugs = append(cache.DriverSlugs, slug)
+	}
+	// Sort for deterministic output
+	sortStrings(cache.DriverSlugs)
+
 	return cache, nil
+}
+
+// isDriverSlug determines if a URL slug represents driver documentation.
+// A slug is considered a driver if:
+//   - It starts with "drivers/" or "languages/"
+//   - OR the displayName contains "Driver" (case-insensitive)
+//   - OR it's in the standaloneDriverSlugs list (for edge cases)
+//
+// Excludes mongodb-shell which is handled separately (use --filter mongosh).
+// Excludes ODMs (Mongoid, Entity Framework), connectors (Spark, Kafka), and other
+// non-driver projects - we only want actual MongoDB drivers.
+func isDriverSlug(slug, displayName string) bool {
+	// Check URL patterns - most drivers use "drivers/" or "languages/" prefixes
+	if strings.HasPrefix(slug, "drivers/") || strings.HasPrefix(slug, "languages/") {
+		return true
+	}
+
+	// Check displayName for "Driver" (handles standalone drivers like ruby-driver
+	// which has URL slug "ruby-driver" and displayName "Ruby Driver")
+	if strings.Contains(strings.ToLower(displayName), "driver") {
+		return true
+	}
+
+	// Standalone driver slugs that don't match the above patterns.
+	// These are edge cases where the URL slug doesn't start with "drivers/" or
+	// "languages/" AND the displayName doesn't contain "Driver".
+	//
+	// As of 2026-01-08, the only such case is:
+	//   - php-library: displayName is "PHP Library", URL is "php-library"
+	//
+	// NOT included (these are ODMs/connectors, not drivers):
+	//   - mongoid: ODM for Ruby (displayName: "Mongoid")
+	//   - entity-framework: ORM for C# (displayName: "Entity Framework")
+	//   - spark-connector, kafka-connector: data connectors
+	standaloneDriverSlugs := map[string]bool{
+		"php-library": true,
+	}
+	return standaloneDriverSlugs[slug]
+}
+
+// sortStrings sorts a slice of strings in place - used to display the list of filters in alphabetical order.
+func sortStrings(s []string) {
+	for i := 0; i < len(s); i++ {
+		for j := i + 1; j < len(s); j++ {
+			if s[i] > s[j] {
+				s[i], s[j] = s[j], s[i]
+			}
+		}
+	}
 }
 
 // isVersionSlug checks if a string looks like a version slug.
@@ -229,7 +304,6 @@ func isVersionSlug(s string) bool {
 	matched, _ := regexp.MatchString(`^v?\d+(\.\d+)*$`, s)
 	return matched
 }
-
 
 // scanSnootyTomlFiles scans the monorepo for snooty.toml files and builds
 // a mapping from snooty project name to content directory.
@@ -338,7 +412,44 @@ func GetURLMapping(monorepoPath string) (*URLMapping, error) {
 		URLSlugToProject:    cache.Mapping,
 		ProjectToContentDir: projectToDir,
 		ProjectBranches:     cache.Branches,
+		DriverSlugs:         cache.DriverSlugs,
 		MonorepoPath:        monorepoPath,
+	}, nil
+}
+
+// GetURLMappingWithoutMonorepo returns a URLMapping instance without requiring a monorepo path.
+// This is useful for operations that only need API data (like listing drivers) and don't need
+// to resolve local file paths.
+func GetURLMappingWithoutMonorepo() (*URLMapping, error) {
+	var cache *URLMappingCache
+	var err error
+
+	// Try to load from cache first
+	cache, err = loadCache()
+	if err != nil {
+		// Cache miss or expired, try to fetch from API
+		cache, err = fetchFromAPI()
+		if err != nil {
+			// API failed, use static fallback
+			fmt.Fprintf(os.Stderr, "Warning: Could not fetch URL mapping from API (%v), using static fallback\n", err)
+			cache = getStaticFallback()
+		} else {
+			// Save to cache for next time
+			if saveErr := saveCache(cache); saveErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Could not save URL mapping cache: %v\n", saveErr)
+			}
+		}
+	}
+
+	// Merge special cases that aren't in the API data
+	mergeSpecialCases(cache)
+
+	return &URLMapping{
+		URLSlugToProject:    cache.Mapping,
+		ProjectToContentDir: make(map[string]string), // Empty - no monorepo scanning
+		ProjectBranches:     cache.Branches,
+		DriverSlugs:         cache.DriverSlugs,
+		MonorepoPath:        "",
 	}, nil
 }
 
@@ -369,64 +480,84 @@ var specialSlugToProject = map[string]string{
 	"get-started": "landing",
 }
 
-
 // getStaticFallback returns a static URL mapping as a fallback when API is unavailable.
 func getStaticFallback() *URLMappingCache {
 	return &URLMappingCache{
 		Timestamp: time.Now(),
 		Mapping: map[string]string{
-			"atlas":                          "cloud-docs",
-			"atlas/app-services":             "atlas-app-services",
-			"atlas/architecture":             "atlas-architecture",
-			"atlas/cli":                      "atlas-cli",
-			"atlas/device-sdks":              "realm",
-			"atlas/government":               "cloudgov",
-			"atlas/operator":                 "atlas-operator",
-			"bi-connector":                   "bi-connector",
-			"charts":                         "charts",
-			"cloud-manager":                  "cloud-manager",
-			"compass":                        "compass",
-			"database-tools":                 "database-tools",
-			"drivers":                        "drivers",
-			"drivers/csharp":                 "csharp",
-			"drivers/go":                     "golang",
-			"drivers/java/sync":              "java",
-			"drivers/kotlin/coroutine":       "kotlin",
-			"drivers/node":                   "node",
-			"drivers/php/laravel-mongodb":    "laravel",
-			"drivers/rust":                   "rust",
-			"entity-framework":               "entity-framework",
-			"get-started":                    "landing",
-			"kafka-connector":                "kafka-connector",
-			"kubernetes":                     "mck",
-			"kubernetes-operator":            "docs-k8s-operator",
-			"languages/c/c-driver":           "c",
-			"languages/cpp/cpp-driver":       "cpp-driver",
-			"languages/java/mongodb-hibernate": "hibernate",
+			"atlas":                                  "cloud-docs",
+			"atlas/app-services":                     "atlas-app-services",
+			"atlas/architecture":                     "atlas-architecture",
+			"atlas/cli":                              "atlas-cli",
+			"atlas/device-sdks":                      "realm",
+			"atlas/government":                       "cloudgov",
+			"atlas/operator":                         "atlas-operator",
+			"bi-connector":                           "bi-connector",
+			"charts":                                 "charts",
+			"cloud-manager":                          "cloud-manager",
+			"compass":                                "compass",
+			"database-tools":                         "database-tools",
+			"drivers":                                "drivers",
+			"drivers/csharp":                         "csharp",
+			"drivers/go":                             "golang",
+			"drivers/java/sync":                      "java",
+			"drivers/kotlin/coroutine":               "kotlin",
+			"drivers/node":                           "node",
+			"drivers/php/laravel-mongodb":            "laravel",
+			"drivers/rust":                           "rust",
+			"entity-framework":                       "entity-framework",
+			"get-started":                            "landing",
+			"kafka-connector":                        "kafka-connector",
+			"kubernetes":                             "mck",
+			"kubernetes-operator":                    "docs-k8s-operator",
+			"languages/c/c-driver":                   "c",
+			"languages/cpp/cpp-driver":               "cpp-driver",
+			"languages/java/mongodb-hibernate":       "hibernate",
 			"languages/java/reactive-streams-driver": "java-rs",
-			"languages/kotlin/kotlin-sync-driver": "kotlin-sync",
-			"languages/python/django-mongodb": "django",
-			"languages/python/pymongo-arrow-driver": "pymongo-arrow",
-			"languages/python/pymongo-driver": "pymongo",
-			"languages/scala/scala-driver":   "scala",
-			"manual":                         "docs",
-			"mcp-server":                     "mcp-server",
-			"mongocli":                       "mongocli",
-			"mongodb-analyzer":               "visual-studio-extension",
-			"mongodb-intellij":               "intellij",
-			"mongodb-shell":                  "mongodb-shell",
-			"mongodb-voyage":                 "voyage",
-			"mongodb-vscode":                 "mongodb-vscode",
-			"mongoid":                        "mongoid",
-			"mongosync":                      "mongosync",
-			"ops-manager":                    "ops-manager",
-			"php-library":                    "php-library",
-			"relational-migrator":            "docs-relational-migrator",
-			"ruby-driver":                    "ruby-driver",
-			"spark-connector":                "spark-connector",
+			"languages/kotlin/kotlin-sync-driver":    "kotlin-sync",
+			"languages/python/django-mongodb":        "django",
+			"languages/python/pymongo-arrow-driver":  "pymongo-arrow",
+			"languages/python/pymongo-driver":        "pymongo",
+			"languages/scala/scala-driver":           "scala",
+			"manual":                                 "docs",
+			"mcp-server":                             "mcp-server",
+			"mongocli":                               "mongocli",
+			"mongodb-analyzer":                       "visual-studio-extension",
+			"mongodb-intellij":                       "intellij",
+			"mongodb-shell":                          "mongodb-shell",
+			"mongodb-voyage":                         "voyage",
+			"mongodb-vscode":                         "mongodb-vscode",
+			"mongoid":                                "mongoid",
+			"mongosync":                              "mongosync",
+			"ops-manager":                            "ops-manager",
+			"php-library":                            "php-library",
+			"relational-migrator":                    "docs-relational-migrator",
+			"ruby-driver":                            "ruby-driver",
+			"spark-connector":                        "spark-connector",
 		},
 		Branches: map[string][]string{
 			"docs": {"manual", "upcoming", "v8.0", "v7.0", "v6.0", "v5.0", "v4.4"},
+		},
+		DriverSlugs: []string{
+			"drivers/csharp",
+			"drivers/go",
+			"drivers/java/sync",
+			"drivers/kotlin/coroutine",
+			"drivers/node",
+			"drivers/php/laravel-mongodb",
+			"drivers/rust",
+			"languages/c/c-driver",
+			"languages/cpp/cpp-driver",
+			"languages/java/mongodb-hibernate",
+			"languages/java/reactive-streams-driver",
+			"languages/kotlin/kotlin-sync-driver",
+			"languages/python/django-mongodb",
+			"languages/python/pymongo-arrow-driver",
+			"languages/python/pymongo-driver",
+			"languages/scala/scala-driver",
+			"mongoid",
+			"php-library",
+			"ruby-driver",
 		},
 	}
 }
@@ -562,4 +693,69 @@ func extractDocsPath(url string) string {
 	url = strings.TrimSuffix(url, "/")
 
 	return url
+}
+
+// IsDriverURL checks if a URL is for driver documentation.
+// Returns true if the URL matches any known driver slug pattern.
+// Excludes mongodb-shell which is handled separately.
+func (m *URLMapping) IsDriverURL(url string) bool {
+	urlPath := extractDocsPath(url)
+	if urlPath == "" {
+		return false
+	}
+	urlPathLower := strings.ToLower(urlPath)
+
+	// Check against known driver slugs
+	for _, slug := range m.DriverSlugs {
+		slugLower := strings.ToLower(slug)
+		if strings.HasPrefix(urlPathLower, slugLower+"/") || urlPathLower == slugLower {
+			return true
+		}
+	}
+
+	// Also check for the generic drivers/ and languages/ prefixes
+	// in case a new driver was added that's not in our cached list
+	if strings.HasPrefix(urlPathLower, "drivers/") || strings.HasPrefix(urlPathLower, "languages/") {
+		return true
+	}
+
+	return false
+}
+
+// IsSpecificDriverURL checks if a URL is for a specific driver by project name.
+// The driverName should be the Snooty project name (e.g., "golang", "pymongo", "node").
+func (m *URLMapping) IsSpecificDriverURL(url, driverName string) bool {
+	urlPath := extractDocsPath(url)
+	if urlPath == "" {
+		return false
+	}
+
+	// Find the slug for this driver
+	for slug, project := range m.URLSlugToProject {
+		if strings.EqualFold(project, driverName) {
+			slugLower := strings.ToLower(slug)
+			urlPathLower := strings.ToLower(urlPath)
+			if strings.HasPrefix(urlPathLower, slugLower+"/") || urlPathLower == slugLower {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// IsMongoshURL checks if a URL is for MongoDB Shell documentation.
+func (m *URLMapping) IsMongoshURL(url string) bool {
+	urlPath := extractDocsPath(url)
+	if urlPath == "" {
+		return false
+	}
+	urlPathLower := strings.ToLower(urlPath)
+
+	return strings.HasPrefix(urlPathLower, "mongodb-shell/") || urlPathLower == "mongodb-shell"
+}
+
+// GetDriverSlugs returns the list of known driver URL slugs.
+func (m *URLMapping) GetDriverSlugs() []string {
+	return m.DriverSlugs
 }

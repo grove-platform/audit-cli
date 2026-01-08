@@ -132,6 +132,18 @@ var MaybeTestableProducts = map[string]bool{
 	"Shell":      true,
 }
 
+// TestableDrivers lists the driver project names that have test infrastructure.
+// Used to highlight which drivers have test infrastructure in --list-drivers output.
+// The keys are the Snooty project names (used in URLs and internally).
+var TestableDrivers = map[string]bool{
+	"csharp":  true, // C# Driver
+	"golang":  true, // Go Driver
+	"java":    true, // Java Sync Driver
+	"node":    true, // Node.js Driver
+	"pymongo": true, // Python Driver
+	// Note: mongodb-shell has test infrastructure but is not a driver (use --filter mongosh)
+}
+
 // ProductMappings holds the mappings from rstspec.toml for resolving
 // tab IDs and composable options to human-readable product names.
 //

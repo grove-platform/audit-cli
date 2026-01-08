@@ -10,6 +10,31 @@ import (
 	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
+// createMockURLMapping creates a mock URLMapping for testing filter functions.
+func createMockURLMapping() *config.URLMapping {
+	return &config.URLMapping{
+		URLSlugToProject: map[string]string{
+			"drivers/go":                     "golang",
+			"drivers/node":                   "node",
+			"drivers/csharp":                 "csharp",
+			"languages/python/pymongo-driver": "pymongo",
+			"drivers/java/sync":              "java",
+			"mongodb-shell":                  "mongodb-shell",
+			"mongoid":                        "mongoid",
+			"ruby-driver":                    "ruby-driver",
+		},
+		DriverSlugs: []string{
+			"drivers/csharp",
+			"drivers/go",
+			"drivers/java/sync",
+			"drivers/node",
+			"languages/python/pymongo-driver",
+			"mongoid",
+			"ruby-driver",
+		},
+	}
+}
+
 // TestParseCSV tests the CSV parsing functionality.
 func TestParseCSV(t *testing.T) {
 	// Create a temporary CSV file with header
@@ -90,6 +115,209 @@ func TestParseCSVMissingFile(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for missing file, got nil")
 	}
+}
+
+// TestMatchesFilter tests the matchesFilter function.
+func TestMatchesFilter(t *testing.T) {
+	urlMapping := createMockURLMapping()
+
+	testCases := []struct {
+		name     string
+		url      string
+		filter   string
+		expected bool
+	}{
+		// Search filter tests
+		{"search matches atlas-search", "www.mongodb.com/docs/atlas/atlas-search/tutorial/", "search", true},
+		{"search matches search in path", "www.mongodb.com/docs/manual/search/text/", "search", true},
+		{"search excludes vector-search", "www.mongodb.com/docs/atlas/atlas-vector-search/tutorial/", "search", false},
+		{"search case insensitive", "www.mongodb.com/docs/atlas/Atlas-Search/tutorial/", "search", true},
+		{"search no match", "www.mongodb.com/docs/atlas/triggers/", "search", false},
+
+		// Vector-search filter tests
+		{"vector-search matches", "www.mongodb.com/docs/atlas/atlas-vector-search/tutorial/", "vector-search", true},
+		{"vector-search case insensitive", "www.mongodb.com/docs/atlas/Vector-Search/tutorial/", "vector-search", true},
+		{"vector-search no match on regular search", "www.mongodb.com/docs/atlas/atlas-search/tutorial/", "vector-search", false},
+		{"vector-search no match", "www.mongodb.com/docs/atlas/triggers/", "vector-search", false},
+
+		// Drivers filter tests
+		{"drivers matches go driver", "www.mongodb.com/docs/drivers/go/current/", "drivers", true},
+		{"drivers matches node driver", "www.mongodb.com/docs/drivers/node/current/", "drivers", true},
+		{"drivers matches pymongo", "www.mongodb.com/docs/languages/python/pymongo-driver/current/", "drivers", true},
+		{"drivers excludes mongodb-shell", "www.mongodb.com/docs/mongodb-shell/current/", "drivers", false},
+		{"drivers no match", "www.mongodb.com/docs/atlas/triggers/", "drivers", false},
+
+		// Specific driver filter tests
+		{"driver:golang matches", "www.mongodb.com/docs/drivers/go/current/page/", "driver:golang", true},
+		{"driver:golang no match", "www.mongodb.com/docs/drivers/node/current/", "driver:golang", false},
+		{"driver:pymongo matches", "www.mongodb.com/docs/languages/python/pymongo-driver/current/", "driver:pymongo", true},
+
+		// Mongosh filter tests
+		{"mongosh matches", "www.mongodb.com/docs/mongodb-shell/current/", "mongosh", true},
+		{"mongosh no match", "www.mongodb.com/docs/drivers/go/current/", "mongosh", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesFilter(tc.url, tc.filter, urlMapping)
+			if result != tc.expected {
+				t.Errorf("matchesFilter(%q, %q) = %v, expected %v", tc.url, tc.filter, result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestMatchesAnyFilter tests the matchesAnyFilter function.
+func TestMatchesAnyFilter(t *testing.T) {
+	urlMapping := createMockURLMapping()
+
+	testCases := []struct {
+		name     string
+		url      string
+		filters  []string
+		expected bool
+	}{
+		{"matches first filter", "www.mongodb.com/docs/atlas/atlas-search/", []string{"search", "vector-search"}, true},
+		{"matches second filter", "www.mongodb.com/docs/atlas/vector-search/", []string{"search", "vector-search"}, true},
+		{"matches no filter", "www.mongodb.com/docs/atlas/triggers/", []string{"search", "vector-search"}, false},
+		{"empty filters", "www.mongodb.com/docs/atlas/atlas-search/", []string{}, false},
+		{"matches drivers filter", "www.mongodb.com/docs/drivers/go/current/", []string{"drivers"}, true},
+		{"matches mongosh filter", "www.mongodb.com/docs/mongodb-shell/current/", []string{"mongosh"}, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesAnyFilter(tc.url, tc.filters, urlMapping)
+			if result != tc.expected {
+				t.Errorf("matchesAnyFilter(%q, %v) = %v, expected %v", tc.url, tc.filters, result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestFilterEntries tests the filterEntries function.
+func TestFilterEntries(t *testing.T) {
+	urlMapping := createMockURLMapping()
+
+	entries := []PageEntry{
+		{Rank: 1, URL: "www.mongodb.com/docs/atlas/atlas-search/tutorial/"},
+		{Rank: 2, URL: "www.mongodb.com/docs/atlas/atlas-vector-search/tutorial/"},
+		{Rank: 3, URL: "www.mongodb.com/docs/atlas/triggers/"},
+		{Rank: 4, URL: "www.mongodb.com/docs/manual/text-search/"},
+		{Rank: 5, URL: "www.mongodb.com/docs/drivers/go/current/"},
+		{Rank: 6, URL: "www.mongodb.com/docs/mongodb-shell/current/"},
+	}
+
+	t.Run("filter by search", func(t *testing.T) {
+		filtered := filterEntries(entries, []string{"search"}, urlMapping)
+		if len(filtered) != 2 {
+			t.Errorf("Expected 2 entries, got %d", len(filtered))
+		}
+		// Should include atlas-search and text-search, but not vector-search
+		for _, e := range filtered {
+			if e.URL == "www.mongodb.com/docs/atlas/atlas-vector-search/tutorial/" {
+				t.Error("Should not include vector-search URL in search filter")
+			}
+		}
+	})
+
+	t.Run("filter by vector-search", func(t *testing.T) {
+		filtered := filterEntries(entries, []string{"vector-search"}, urlMapping)
+		if len(filtered) != 1 {
+			t.Errorf("Expected 1 entry, got %d", len(filtered))
+		}
+		if filtered[0].Rank != 2 {
+			t.Errorf("Expected rank 2, got %d", filtered[0].Rank)
+		}
+	})
+
+	t.Run("filter by both search filters", func(t *testing.T) {
+		filtered := filterEntries(entries, []string{"search", "vector-search"}, urlMapping)
+		if len(filtered) != 3 {
+			t.Errorf("Expected 3 entries, got %d", len(filtered))
+		}
+	})
+
+	t.Run("no filters returns empty", func(t *testing.T) {
+		filtered := filterEntries(entries, []string{}, urlMapping)
+		if len(filtered) != 0 {
+			t.Errorf("Expected 0 entries with empty filter, got %d", len(filtered))
+		}
+	})
+
+	t.Run("filter by drivers", func(t *testing.T) {
+		filtered := filterEntries(entries, []string{"drivers"}, urlMapping)
+		if len(filtered) != 1 {
+			t.Errorf("Expected 1 entry (go driver), got %d", len(filtered))
+		}
+		if filtered[0].Rank != 5 {
+			t.Errorf("Expected rank 5 (go driver), got %d", filtered[0].Rank)
+		}
+	})
+
+	t.Run("filter by mongosh", func(t *testing.T) {
+		filtered := filterEntries(entries, []string{"mongosh"}, urlMapping)
+		if len(filtered) != 1 {
+			t.Errorf("Expected 1 entry (mongodb-shell), got %d", len(filtered))
+		}
+		if filtered[0].Rank != 6 {
+			t.Errorf("Expected rank 6 (mongodb-shell), got %d", filtered[0].Rank)
+		}
+	})
+}
+
+// TestValidateFilters tests the validateFilters function.
+func TestValidateFilters(t *testing.T) {
+	testCases := []struct {
+		name          string
+		filters       []string
+		expectError   bool
+		errorContains string
+	}{
+		{"valid search filter", []string{"search"}, false, ""},
+		{"valid vector-search filter", []string{"vector-search"}, false, ""},
+		{"valid drivers filter", []string{"drivers"}, false, ""},
+		{"valid mongosh filter", []string{"mongosh"}, false, ""},
+		{"valid driver:golang filter", []string{"driver:golang"}, false, ""},
+		{"valid driver:pymongo filter", []string{"driver:pymongo"}, false, ""},
+		{"valid driver:ruby-driver filter", []string{"driver:ruby-driver"}, false, ""}, // Any driver is valid
+		{"valid driver:scala filter", []string{"driver:scala"}, false, ""},             // Any driver is valid
+		{"valid multiple filters", []string{"search", "drivers", "mongosh"}, false, ""},
+		{"invalid unknown filter", []string{"unknown"}, true, "unknown filter"},
+		{"invalid mongodb-shell as driver", []string{"driver:mongodb-shell"}, true, "use --filter mongosh"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateFilters(tc.filters)
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("Expected error containing %q, got nil", tc.errorContains)
+				} else if tc.errorContains != "" && !contains(err.Error(), tc.errorContains) {
+					t.Errorf("Expected error containing %q, got %q", tc.errorContains, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+			}
+		})
+	}
+}
+
+// contains checks if a string contains a substring (case-insensitive).
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // TestTestableProducts tests the TestableProducts map.

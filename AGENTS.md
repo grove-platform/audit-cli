@@ -46,7 +46,8 @@ audit-cli/
 │   ├── config/               # Configuration management
 │   │   ├── config.go         # Config loading from file/env/args
 │   │   ├── config_test.go    # Config tests
-│   │   └── url_mapping.go    # URL-to-source-file mapping via Snooty Data API
+│   │   ├── url_mapping.go    # URL-to-source-file mapping via Snooty Data API
+│   │   └── url_mapping_test.go # URL mapping tests
 │   ├── language/             # Programming language utilities
 │   │   ├── language.go       # Language normalization, extensions, products
 │   │   └── language_test.go  # Language tests
