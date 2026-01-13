@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/BurntSushi/toml"
-	"github.com/grove-platform/audit-cli/internal/projectinfo"
+	"github.com/grove-platform/audit-cli/internal/snooty"
 )
 
 // ParseSnootyTOML parses a snooty.toml file and extracts composables.
@@ -17,13 +15,12 @@ import (
 //   - filePath: Path to the snooty.toml file
 //
 // Returns:
-//   - []Composable: Slice of composables found in the file
+//   - []snooty.Composable: Slice of composables found in the file
 //   - error: Any error encountered during parsing
-func ParseSnootyTOML(filePath string) ([]Composable, error) {
-	var config SnootyConfig
-	_, err := toml.DecodeFile(filePath, &config)
+func ParseSnootyTOML(filePath string) ([]snooty.Composable, error) {
+	config, err := snooty.ParseFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse TOML file: %w", err)
+		return nil, err
 	}
 
 	return config.Composables, nil
@@ -76,7 +73,7 @@ func FindSnootyTOMLFiles(monorepoPath string, forProject string, currentOnly boo
 			return err
 		}
 
-		projectName, versionName := extractProjectAndVersion(relPath)
+		projectName, versionName := snooty.ExtractProjectAndVersion(relPath)
 		if projectName == "" {
 			return nil
 		}
@@ -88,7 +85,7 @@ func FindSnootyTOMLFiles(monorepoPath string, forProject string, currentOnly boo
 
 		// Filter by current version if specified
 		if currentOnly && versionName != "" {
-			if !projectinfo.IsCurrentVersion(versionName) {
+			if !snooty.IsCurrentVersion(versionName) {
 				return nil
 			}
 		}
@@ -136,32 +133,3 @@ func findContentDirectory(dirPath string) (string, error) {
 
 	return "", fmt.Errorf("content directory not found in: %s", dirPath)
 }
-
-// extractProjectAndVersion extracts project and version from a relative path.
-// Returns (project, version) where version is empty for non-versioned projects.
-//
-// Examples:
-//   - "manual/v8.0/snooty.toml" -> ("manual", "v8.0")
-//   - "atlas/snooty.toml" -> ("atlas", "")
-func extractProjectAndVersion(relPath string) (string, string) {
-	parts := strings.Split(relPath, string(filepath.Separator))
-	if len(parts) < 2 {
-		return "", ""
-	}
-
-	projectName := parts[0]
-
-	// Check if this is a versioned project
-	// Pattern: project/version/snooty.toml (3 parts)
-	// Pattern: project/snooty.toml (2 parts)
-	if len(parts) == 3 && parts[2] == "snooty.toml" {
-		// Versioned project: project/version/snooty.toml
-		return projectName, parts[1]
-	} else if len(parts) == 2 && parts[1] == "snooty.toml" {
-		// Non-versioned project: project/snooty.toml
-		return projectName, ""
-	}
-
-	return "", ""
-}
-

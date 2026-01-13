@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // OutputFormat represents the output format for the analysis results.
@@ -87,7 +89,7 @@ func printText(analysis *UsageAnalysis, verbose bool, recursive bool) {
 		byDirectiveType := groupByDirectiveType(analysis.UsingFiles)
 
 		// Print breakdown by directive type with file and reference counts
-		directiveTypes := []string{"include", "literalinclude", "io-code-block", "toctree"}
+		directiveTypes := ValidDirectiveTypes
 		for _, directiveType := range directiveTypes {
 			if refs, ok := byDirectiveType[directiveType]; ok {
 				uniqueFiles := countUniqueFiles(refs)
@@ -167,8 +169,8 @@ func printJSON(analysis *UsageAnalysis) error {
 }
 
 // groupByDirectiveType groups usages by their directive type.
-func groupByDirectiveType(usages []FileUsage) map[string][]FileUsage {
-	groups := make(map[string][]FileUsage)
+func groupByDirectiveType(usages []FileUsage) map[rst.DirectiveType][]FileUsage {
+	groups := make(map[rst.DirectiveType][]FileUsage)
 
 	for _, usage := range usages {
 		groups[usage.DirectiveType] = append(groups[usage.DirectiveType], usage)
@@ -197,18 +199,19 @@ func FormatReferencePath(path, sourceDir string) string {
 }
 
 // GetDirectiveTypeLabel returns a human-readable label for a directive type.
-func GetDirectiveTypeLabel(directiveType string) string {
-	labels := map[string]string{
-		"include":         "Include",
-		"literalinclude":  "Literal Include",
-		"io-code-block":   "I/O Code Block",
+func GetDirectiveTypeLabel(directiveType rst.DirectiveType) string {
+	labels := map[rst.DirectiveType]string{
+		rst.Include:        "Include",
+		rst.LiteralInclude: "Literal Include",
+		rst.IoCodeBlock:    "I/O Code Block",
+		rst.Toctree:        "Toctree",
 	}
 
 	if label, ok := labels[directiveType]; ok {
 		return label
 	}
 
-	return strings.Title(directiveType)
+	return strings.Title(string(directiveType))
 }
 
 // PrintPathsOnly prints only the file paths, one per line.
@@ -268,7 +271,7 @@ func PrintSummary(analysis *UsageAnalysis) error {
 
 		// Print breakdown by type
 		fmt.Println("\nBy Type:")
-		directiveTypes := []string{"include", "literalinclude", "io-code-block", "toctree"}
+		directiveTypes := ValidDirectiveTypes
 		for _, directiveType := range directiveTypes {
 			if usages, ok := byDirectiveType[directiveType]; ok {
 				uniqueFiles := countUniqueFiles(usages)

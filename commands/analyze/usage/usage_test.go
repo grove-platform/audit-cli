@@ -3,6 +3,8 @@ package usage
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/grove-platform/audit-cli/internal/rst"
 )
 
 // TestAnalyzeUsage tests the AnalyzeUsage function with various scenarios.
@@ -14,30 +16,30 @@ func TestAnalyzeUsage(t *testing.T) {
 		name                  string
 		targetFile            string
 		expectedUsages        int
-		expectedDirectiveType string
+		expectedDirectiveType rst.DirectiveType
 	}{
 		{
-			name:               "Include file with multiple usages",
-			targetFile:         "includes/intro.rst",
-			expectedUsages:     5, // 4 RST files + 1 YAML file (no toctree by default)
-			expectedDirectiveType: "include",
+			name:                  "Include file with multiple usages",
+			targetFile:            "includes/intro.rst",
+			expectedUsages:        5, // 4 RST files + 1 YAML file (no toctree by default)
+			expectedDirectiveType: rst.Include,
 		},
 		{
-			name:               "Code example with literalinclude",
-			targetFile:         "code-examples/example.py",
-			expectedUsages:     2, // 1 RST file + 1 YAML file
-			expectedDirectiveType: "literalinclude",
+			name:                  "Code example with literalinclude",
+			targetFile:            "code-examples/example.py",
+			expectedUsages:        2, // 1 RST file + 1 YAML file
+			expectedDirectiveType: rst.LiteralInclude,
 		},
 		{
-			name:               "Code example with multiple directive types",
-			targetFile:         "code-examples/example.js",
-			expectedUsages:     2, // literalinclude + io-code-block
+			name:                  "Code example with multiple directive types",
+			targetFile:            "code-examples/example.js",
+			expectedUsages:        2, // literalinclude + io-code-block
 			expectedDirectiveType: "", // mixed types
 		},
 		{
-			name:               "File with no usages",
-			targetFile:         "code-block-test.rst",
-			expectedUsages:     0,
+			name:                  "File with no usages",
+			targetFile:            "code-block-test.rst",
+			expectedUsages:        0,
 			expectedDirectiveType: "",
 		},
 	}
@@ -104,7 +106,7 @@ func TestFindUsagesInFile(t *testing.T) {
 		searchFile        string
 		targetFile        string
 		expectedUsages    int
-		expectedDirective string
+		expectedDirective rst.DirectiveType
 		includeToctree    bool
 	}{
 		{
@@ -112,7 +114,7 @@ func TestFindUsagesInFile(t *testing.T) {
 			searchFile:        "include-test.rst",
 			targetFile:        "includes/intro.rst",
 			expectedUsages:    1,
-			expectedDirective: "include",
+			expectedDirective: rst.Include,
 			includeToctree:    false,
 		},
 		{
@@ -120,7 +122,7 @@ func TestFindUsagesInFile(t *testing.T) {
 			searchFile:        "literalinclude-test.rst",
 			targetFile:        "code-examples/example.py",
 			expectedUsages:    1,
-			expectedDirective: "literalinclude",
+			expectedDirective: rst.LiteralInclude,
 			includeToctree:    false,
 		},
 		{
@@ -128,7 +130,7 @@ func TestFindUsagesInFile(t *testing.T) {
 			searchFile:        "io-code-block-test.rst",
 			targetFile:        "code-examples/example.js",
 			expectedUsages:    1,
-			expectedDirective: "io-code-block",
+			expectedDirective: rst.IoCodeBlock,
 			includeToctree:    false,
 		},
 		{
@@ -136,7 +138,7 @@ func TestFindUsagesInFile(t *testing.T) {
 			searchFile:        "duplicate-include-test.rst",
 			targetFile:        "includes/intro.rst",
 			expectedUsages:    2, // Same file included twice
-			expectedDirective: "include",
+			expectedDirective: rst.Include,
 			includeToctree:    false,
 		},
 		{
@@ -144,7 +146,7 @@ func TestFindUsagesInFile(t *testing.T) {
 			searchFile:        "index.rst",
 			targetFile:        "include-test.rst",
 			expectedUsages:    1,
-			expectedDirective: "toctree",
+			expectedDirective: rst.Toctree,
 			includeToctree:    true, // Must enable toctree flag
 		},
 		{
@@ -399,11 +401,11 @@ func TestGetExtractRefs(t *testing.T) {
 // TestGroupByDirectiveType tests the groupByDirectiveType function.
 func TestGroupByDirectiveType(t *testing.T) {
 	usages := []FileUsage{
-		{DirectiveType: "include", FilePath: "file1.rst"},
-		{DirectiveType: "include", FilePath: "file2.rst"},
-		{DirectiveType: "literalinclude", FilePath: "file3.rst"},
-		{DirectiveType: "io-code-block", FilePath: "file4.rst"},
-		{DirectiveType: "include", FilePath: "file5.rst"},
+		{DirectiveType: rst.Include, FilePath: "file1.rst"},
+		{DirectiveType: rst.Include, FilePath: "file2.rst"},
+		{DirectiveType: rst.LiteralInclude, FilePath: "file3.rst"},
+		{DirectiveType: rst.IoCodeBlock, FilePath: "file4.rst"},
+		{DirectiveType: rst.Include, FilePath: "file5.rst"},
 	}
 
 	groups := groupByDirectiveType(usages)
@@ -414,18 +416,18 @@ func TestGroupByDirectiveType(t *testing.T) {
 	}
 
 	// Check include group
-	if len(groups["include"]) != 3 {
-		t.Errorf("expected 3 include usages, got %d", len(groups["include"]))
+	if len(groups[rst.Include]) != 3 {
+		t.Errorf("expected 3 include usages, got %d", len(groups[rst.Include]))
 	}
 
 	// Check literalinclude group
-	if len(groups["literalinclude"]) != 1 {
-		t.Errorf("expected 1 literalinclude usage, got %d", len(groups["literalinclude"]))
+	if len(groups[rst.LiteralInclude]) != 1 {
+		t.Errorf("expected 1 literalinclude usage, got %d", len(groups[rst.LiteralInclude]))
 	}
 
 	// Check io-code-block group
-	if len(groups["io-code-block"]) != 1 {
-		t.Errorf("expected 1 io-code-block usage, got %d", len(groups["io-code-block"]))
+	if len(groups[rst.IoCodeBlock]) != 1 {
+		t.Errorf("expected 1 io-code-block usage, got %d", len(groups[rst.IoCodeBlock]))
 	}
 }
 

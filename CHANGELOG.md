@@ -5,6 +5,60 @@ All notable changes to audit-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-01-07
+
+### Added
+
+#### Report Commands
+- `report testable-code` - Analyze testable code examples on pages from analytics data
+  - Takes a CSV file with page rankings and URLs from analytics
+  - Resolves URLs to source files using the Snooty Data API
+  - Collects code examples (literalinclude, code, code-block, io-code-block) from each page
+  - Determines product context from tabs, composables, and content directories
+  - Identifies tested vs testable vs "maybe testable" code examples
+  - Supports multiple output formats: text, JSON, CSV
+  - Flags:
+    - `--format, -f` - Output format (text, json, csv)
+    - `--output, -o` - Output file path (default: stdout)
+    - `--details` - Show detailed per-product breakdown
+
+#### Internal Packages
+- `internal/language` - Programming language utilities (refactored from code-examples)
+  - Language normalization (e.g., "ts" → "typescript", "py" → "python")
+  - File extension mapping for all supported languages
+  - Language-to-product mapping for MongoDB drivers
+  - Non-driver language detection (bash, json, yaml, etc.)
+  - MongoDB Shell language detection
+  - Language resolution with priority: argument > option > file extension
+- `internal/snooty` - Snooty.toml parsing utilities
+  - Parse snooty.toml configuration files
+  - Find project snooty.toml from source file paths
+  - Build composable ID-to-title mappings
+  - Extract project and version from snooty.toml paths
+- `internal/config/url_mapping.go` - URL-to-source-file mapping
+  - Fetches project metadata from Snooty Data API
+  - Resolves documentation URLs to source file paths
+  - Caches API responses for 24 hours in `~/.audit-cli/`
+  - Supports offline usage with expired cache fallback
+- `internal/projectinfo/products.go` - Content directory to product mapping
+  - Maps driver content directories to display product names
+  - Supports all MongoDB driver documentation projects
+- `internal/rst/yaml_steps_parser.go` - YAML steps file parsing
+  - Parses legacy YAML-native code examples in steps files
+  - Extracts code blocks with language and content
+- `internal/rst/directive_parser.go` - Enhanced directive parsing
+  - Added `ResolveLanguage()` method to Directive type
+  - Added `ResolveLanguage()` method to SubDirective type
+  - Language resolution follows priority: argument > option > file extension
+
+### Changed
+
+- Refactored language handling from `commands/extract/code-examples/language.go` to `internal/language` package
+  - All language-related utilities now centralized and reusable
+  - Added product mapping and non-driver language detection
+- Enhanced `internal/rst` directive parsing with language resolution methods
+- Updated `analyze usage` to use new language package for file extension handling
+
 ## [0.2.0] - 2025-12-12
 
 ### Added

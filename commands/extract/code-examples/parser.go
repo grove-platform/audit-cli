@@ -9,8 +9,10 @@ import (
 
 // ParseFile parses a file and extracts code examples from reStructuredText directives.
 //
-// This function parses all supported RST directives (literalinclude, code-block, io-code-block)
+// This function parses all supported RST directives (literalinclude, code-block, code, io-code-block)
 // and converts them into CodeExample structs ready for writing to files.
+// Note: The "code" directive is a shorter alias for "code-block" in standard reStructuredText
+// and is treated identically.
 //
 // Parameters:
 //   - filePath: Path to the RST file to parse
@@ -71,28 +73,21 @@ func parseLiteralInclude(sourceFile string, directive rst.Directive, index int) 
 		return CodeExample{}, err
 	}
 
-	// Get the language from the :language: option
-	language := directive.Options["language"]
-	if language == "" {
-		language = Undefined
-	}
-
-	// Normalize the language
-	language = NormalizeLanguage(language)
-
 	return CodeExample{
 		SourceFile:    sourceFile,
-		DirectiveName: DirectiveType(directive.Type),
-		Language:      language,
+		DirectiveName: directive.Type,
+		Language:      directive.ResolveLanguage(),
 		Content:       content,
 		Index:         index,
 	}, nil
 }
 
-// parseCodeBlock parses a code-block directive and extracts the inline code content.
+// parseCodeBlock parses a code-block or code directive and extracts the inline code content.
 //
 // The content is already dedented by the directive parser based on the first line's indentation.
 // Language can be specified either as an argument (.. code-block:: javascript) or as an option (:language: javascript).
+// Note: The "code" directive is a shorter alias for "code-block" in standard reStructuredText
+// and is handled identically by this function.
 func parseCodeBlock(sourceFile string, directive rst.Directive, index int) (CodeExample, error) {
 	// The content is already parsed and dedented by the directive parser
 	content := directive.Content
@@ -100,23 +95,10 @@ func parseCodeBlock(sourceFile string, directive rst.Directive, index int) (Code
 		return CodeExample{}, fmt.Errorf("code-block has no content")
 	}
 
-	// Get the language from the directive argument (e.g., .. code-block:: javascript)
-	// or from the :language: option
-	language := directive.Argument
-	if language == "" {
-		language = directive.Options["language"]
-	}
-	if language == "" {
-		language = Undefined
-	}
-
-	// Normalize the language
-	language = NormalizeLanguage(language)
-
 	return CodeExample{
 		SourceFile:    sourceFile,
-		DirectiveName: DirectiveType(directive.Type),
-		Language:      language,
+		DirectiveName: directive.Type,
+		Language:      directive.ResolveLanguage(),
 		Content:       content,
 		Index:         index,
 	}, nil
@@ -189,7 +171,7 @@ func parseIoCodeBlock(sourceFile string, directive rst.Directive, index int) []C
 
 	// Process input directive
 	if directive.InputDirective != nil {
-		inputExample, err := parseSubDirective(sourceFile, directive.InputDirective, "input", index)
+		inputExample, err := parseSubDirective(sourceFile, directive.InputDirective, directive.Options, "input", index)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to parse input directive at line %d in %s: %v\n",
 				directive.LineNum, sourceFile, err)
@@ -200,7 +182,7 @@ func parseIoCodeBlock(sourceFile string, directive rst.Directive, index int) []C
 
 	// Process output directive
 	if directive.OutputDirective != nil {
-		outputExample, err := parseSubDirective(sourceFile, directive.OutputDirective, "output", index)
+		outputExample, err := parseSubDirective(sourceFile, directive.OutputDirective, directive.Options, "output", index)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to parse output directive at line %d in %s: %v\n",
 				directive.LineNum, sourceFile, err)
@@ -213,7 +195,7 @@ func parseIoCodeBlock(sourceFile string, directive rst.Directive, index int) []C
 }
 
 // parseSubDirective parses an input or output sub-directive within an io-code-block
-func parseSubDirective(sourceFile string, subDir *rst.SubDirective, dirType string, index int) (CodeExample, error) {
+func parseSubDirective(sourceFile string, subDir *rst.SubDirective, parentOptions map[string]string, dirType string, index int) (CodeExample, error) {
 	var content string
 	var err error
 
@@ -234,18 +216,10 @@ func parseSubDirective(sourceFile string, subDir *rst.SubDirective, dirType stri
 		}
 	}
 
-	// Get language from options
-	language := subDir.Options["language"]
-	if language == "" {
-		language = Undefined
-	}
-
-	language = NormalizeLanguage(language)
-
 	return CodeExample{
 		SourceFile:    sourceFile,
-		DirectiveName: DirectiveType(rst.IoCodeBlock),
-		Language:      language,
+		DirectiveName: rst.IoCodeBlock,
+		Language:      subDir.ResolveLanguage(parentOptions),
 		Content:       content,
 		Index:         index,
 		SubType:       dirType, // "input" or "output"

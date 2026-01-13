@@ -12,6 +12,7 @@ A Go CLI tool for performing audit-related tasks in the MongoDB documentation mo
   - [Analyze Commands](#analyze-commands)
   - [Compare Commands](#compare-commands)
   - [Count Commands](#count-commands)
+  - [Report Commands](#report-commands)
 - [Development](#development)
   - [Project Structure](#project-structure)
   - [Adding New Commands](#adding-new-commands)
@@ -173,9 +174,11 @@ audit-cli
 │   └── composables
 ├── compare          # Compare files across versions
 │   └── file-contents
-└── count            # Count code examples and documentation pages
-    ├── tested-examples
-    └── pages
+├── count            # Count code examples and documentation pages
+│   ├── tested-examples
+│   └── pages
+└── report           # Generate reports from documentation data
+    └── testable-code
 ```
 
 ### Extract Commands
@@ -1504,6 +1507,149 @@ echo "Total documentation pages: $TOTAL_PAGES"
 # Output: 150
 ```
 
+### Report Commands
+
+#### `report testable-code`
+
+Analyze testable code examples on documentation pages based on analytics CSV data.
+
+This command takes a CSV file with page rankings and URLs, resolves each URL to its source file in the monorepo, collects code examples (literalinclude, code-block, io-code-block), and generates a report with testability information.
+
+**Use Cases:**
+
+This command helps writers and maintainers:
+- Identify high-traffic pages with untested code examples
+- Prioritize which pages to add test coverage to
+- Track the ratio of tested vs testable code examples
+- Understand code example distribution by product/language
+- Find "maybe testable" examples that need manual review
+
+**Key Concepts:**
+
+- **Product vs Language**: A "product" is a MongoDB driver or tool (e.g., "Python", "Node.js"). A "language" is the programming language of a code example (e.g., "python", "javascript"). The same language can map to different products depending on context.
+- **Testable vs Tested**: "Testable" means the code example is for a product that has test infrastructure. "Tested" means the code example actually references tested code (literalinclude from the tested code examples directory).
+- **Maybe Testable**: JavaScript/shell examples without clear context that may need manual review.
+
+**Examples:**
+
+```bash
+# Analyze pages from a CSV file (specify monorepo path)
+./audit-cli report testable-code analytics.csv /path/to/docs-monorepo
+
+# Use configured monorepo path (from config file or environment variable)
+./audit-cli report testable-code analytics.csv
+
+# Output as JSON to a file
+./audit-cli report testable-code analytics.csv --format json --output report.json
+
+# Output as CSV for spreadsheet analysis
+./audit-cli report testable-code analytics.csv --format csv --details -o report.csv
+
+# Output to stdout (can also use shell redirection)
+./audit-cli report testable-code analytics.csv --format json > report.json
+```
+
+**CSV Input Format:**
+
+The CSV file should have columns for rank and URL. The first row is treated as a header, but the tool also handles CSV
+files with no header:
+
+```csv
+rank,url
+1,www.mongodb.com/docs/atlas/some-page/
+2,www.mongodb.com/docs/manual/tutorial/install/
+```
+
+**Flags:**
+
+- `--format, -f <format>` - Output format: `text` (default), `json`, or `csv`
+- `--output, -o <file>` - Output file path (default: stdout)
+- `--details` - Show detailed per-product breakdown (for CSV output, includes per-product columns)
+- `--filter <filter>` - Filter pages by product area (can be specified multiple times)
+- `--list-drivers` - List all available driver filter options from the Snooty Data API
+
+**Filtering:**
+
+Use the `--filter` flag to focus on specific product areas. Multiple filters can be specified to include pages matching any filter.
+
+Available filters:
+- `search` - Pages with "atlas-search" or "search" in URL (excludes vector-search)
+- `vector-search` - Pages with "vector-search" in URL
+- `drivers` - All MongoDB driver documentation pages
+- `driver:<name>` - Specific driver by project name (e.g., `driver:pymongo`, `driver:node`)
+- `mongosh` - MongoDB Shell documentation pages
+
+```bash
+# Filter to only Atlas Search pages
+./audit-cli report testable-code analytics.csv --filter search
+
+# Filter to only PyMongo driver pages
+./audit-cli report testable-code analytics.csv --filter driver:pymongo
+
+# Filter to multiple areas (pages matching any filter are included)
+./audit-cli report testable-code analytics.csv --filter drivers --filter mongosh
+
+# List all available driver filter options
+./audit-cli report testable-code --list-drivers
+```
+
+The `--list-drivers` flag queries the Snooty Data API to show all available driver project names that can be used with the `driver:<name>` filter. Results are cached for 24 hours.
+
+**Testable Products:**
+
+Products with test infrastructure (code examples for these products are marked as "testable"):
+- C#
+- Go
+- Java (Sync)
+- Node.js
+- Python
+- MongoDB Shell
+
+To add a new testable product when test infrastructure is added:
+
+1. Edit `commands/report/testable-code/types.go`
+2. Add entries to the `TestableProducts` map for both the display name and internal ID:
+   ```go
+   var TestableProducts = map[string]bool{
+       // ... existing entries ...
+       "Ruby":  true,  // Display name
+       "ruby":  true,  // Internal ID (used in tabs/composables)
+   }
+   ```
+3. Update the tests in `commands/report/testable-code/testable_code_test.go` to include the new product
+4. Update this README to list the new product
+
+**Output:**
+
+The text output includes a summary table and detailed per-page breakdowns:
+
+```
+==========================================================================================
+PAGE ANALYTICS REPORT
+==========================================================================================
+Total pages analyzed: 3
+
+SUMMARY
+------------------------------------------------------------------------------------------
+Rank  URL                                                Total Tested Testable  Maybe
+------------------------------------------------------------------------------------------
+1     www.mongodb.com/docs/drivers/node/current/quick...     8      2        6      0
+2     www.mongodb.com/docs/manual/tutorial/install-m...     4      0        0      2
+3     www.mongodb.com/docs/atlas/getting-started/           12      5        7      0
+
+DETAILED REPORTS
+==========================================================================================
+
+Rank 1: www.mongodb.com/docs/drivers/node/current/quick-start/
+Source: content/node/current/source/quick-start.txt
+------------------------------------------------------------------------------------------
+  Product              Total  Input Output Tested Testable  Maybe
+  --------------------------------------------------------------------
+  Node.js                  8      4      4      2        6      0
+  --------------------------------------------------------------------
+  TOTAL                    8      4      4      2        6      0
+```
+
 ## Development
 
 ### Project Structure
@@ -1520,8 +1666,7 @@ audit-cli/
 │   │   │   ├── parser.go                    # RST directive parsing
 │   │   │   ├── writer.go                    # File writing logic
 │   │   │   ├── report.go                    # Report generation
-│   │   │   ├── types.go                     # Type definitions
-│   │   │   └── language.go                  # Language normalization
+│   │   │   └── types.go                     # Type definitions
 │   │   └── procedures/                      # Procedures extraction subcommand
 │   │       ├── procedures.go                # Command logic
 │   │       ├── procedures_test.go           # Tests
@@ -1573,43 +1718,63 @@ audit-cli/
 │   │       ├── output.go                    # Output formatting
 │   │       ├── types.go                     # Type definitions
 │   │       └── version_resolver.go          # Version path resolution
-│   └── count/                               # Count parent command
-│       ├── count.go                         # Parent command definition
-│       ├── tested-examples/                 # Tested examples counting subcommand
-│       │   ├── tested_examples.go           # Command logic
-│       │   ├── tested_examples_test.go      # Tests
-│       │   ├── counter.go                   # Counting logic
-│       │   ├── output.go                    # Output formatting
-│       │   └── types.go                     # Type definitions
-│       └── pages/                           # Pages counting subcommand
-│           ├── pages.go                     # Command logic
-│           ├── pages_test.go                # Tests
-│           ├── counter.go                   # Counting logic
+│   ├── count/                               # Count parent command
+│   │   ├── count.go                         # Parent command definition
+│   │   ├── tested-examples/                 # Tested examples counting subcommand
+│   │   │   ├── tested_examples.go           # Command logic
+│   │   │   ├── tested_examples_test.go      # Tests
+│   │   │   ├── counter.go                   # Counting logic
+│   │   │   ├── output.go                    # Output formatting
+│   │   │   └── types.go                     # Type definitions
+│   │   └── pages/                           # Pages counting subcommand
+│   │       ├── pages.go                     # Command logic
+│   │       ├── pages_test.go                # Tests
+│   │       ├── counter.go                   # Counting logic
+│   │       ├── output.go                    # Output formatting
+│   │       └── types.go                     # Type definitions
+│   └── report/                              # Report parent command
+│       ├── report.go                        # Parent command definition
+│       └── testable-code/                   # Testable code analysis subcommand
+│           ├── testable_code.go             # Command logic
+│           ├── testable_code_test.go        # Tests
+│           ├── code_collector.go            # Code example collection logic
+│           ├── csv_parser.go                # CSV parsing
 │           ├── output.go                    # Output formatting
 │           └── types.go                     # Type definitions
 ├── internal/                                # Internal packages
 │   ├── config/                              # Configuration management
 │   │   ├── config.go                        # Config loading and path resolution
-│   │   └── config_test.go                   # Config tests
+│   │   ├── config_test.go                   # Config tests
+│   │   └── url_mapping.go                   # URL-to-source-file mapping via Snooty Data API
+│   ├── language/                            # Programming language utilities
+│   │   ├── language.go                      # Language normalization, extensions, products
+│   │   └── language_test.go                 # Language tests
 │   ├── projectinfo/                         # Project structure and info utilities
 │   │   ├── pathresolver.go                  # Core path resolution
 │   │   ├── pathresolver_test.go             # Tests
+│   │   ├── products.go                      # Content directory to product mapping
 │   │   ├── source_finder.go                 # Source directory detection
 │   │   ├── version_resolver.go              # Version path resolution
 │   │   └── types.go                         # Type definitions
-│   └── rst/                                 # RST parsing utilities
-│       ├── parser.go                        # Generic parsing with includes
-│       ├── include_resolver.go              # Include directive resolution
-│       ├── directive_parser.go              # Directive parsing
-│       ├── directive_regex.go               # Directive regex patterns
-│       ├── parse_procedures.go              # Procedure parsing (core logic)
-│       ├── parse_procedures_test.go         # Procedure parsing tests
-│       ├── get_procedure_variations.go      # Variation extraction logic
-│       ├── get_procedure_variations_test.go # Variation tests
-│       ├── procedure_types.go               # Procedure type definitions
-│       ├── rstspec.go                       # Rstspec.toml fetching and parsing
-│       ├── rstspec_test.go                  # Rstspec tests
-│       └── file_utils.go                    # File utilities
+│   ├── rst/                                 # RST parsing utilities
+│   │   ├── parser.go                        # Generic parsing with includes
+│   │   ├── include_resolver.go              # Include directive resolution
+│   │   ├── directive_parser.go              # Directive parsing with language resolution
+│   │   ├── directive_parser_test.go         # Directive parser tests
+│   │   ├── directive_regex.go               # Directive regex patterns
+│   │   ├── parse_procedures.go              # Procedure parsing (core logic)
+│   │   ├── parse_procedures_test.go         # Procedure parsing tests
+│   │   ├── get_procedure_variations.go      # Variation extraction logic
+│   │   ├── get_procedure_variations_test.go # Variation tests
+│   │   ├── procedure_types.go               # Procedure type definitions
+│   │   ├── rstspec.go                       # Rstspec.toml fetching and parsing
+│   │   ├── rstspec_test.go                  # Rstspec tests
+│   │   ├── yaml_steps_parser.go             # Parse YAML steps files for code examples
+│   │   ├── yaml_steps_parser_test.go        # YAML steps parser tests
+│   │   └── file_utils.go                    # File utilities
+│   └── snooty/                              # Snooty.toml parsing utilities
+│       ├── snooty.go                        # Parse snooty.toml, find project config
+│       └── snooty_test.go                   # Snooty tests
 └── testdata/                                # Test fixtures
     ├── input-files/                         # Test RST files
     │   └── source/                          # Source directory (required)
@@ -1627,6 +1792,8 @@ audit-cli/
     │   └── *.txt                            # Direct comparison tests
     ├── count-test-monorepo/                 # Count command test data
     │   └── content/code-examples/tested/    # Tested examples structure
+    ├── testable-code-test/                  # Testable code report test data
+    │   └── content/test-project/            # Test project with code examples
     └── search-test-files/                   # Search command test data
 ```
 

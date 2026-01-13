@@ -19,13 +19,14 @@ import (
 	"github.com/grove-platform/audit-cli/commands/compare"
 	"github.com/grove-platform/audit-cli/commands/count"
 	"github.com/grove-platform/audit-cli/commands/extract"
+	"github.com/grove-platform/audit-cli/commands/report"
 	"github.com/grove-platform/audit-cli/commands/search"
 	"github.com/spf13/cobra"
 )
 
 // version is the current version of audit-cli.
 // Update this when releasing new versions following semantic versioning.
-const version = "0.2.0"
+const version = "0.3.0"
 
 func main() {
 	var rootCmd = &cobra.Command{
@@ -53,6 +54,7 @@ Designed for maintenance tasks, scoping work, and reporting to stakeholders.`,
 	rootCmd.AddCommand(analyze.NewAnalyzeCommand())
 	rootCmd.AddCommand(compare.NewCompareCommand())
 	rootCmd.AddCommand(count.NewCountCommand())
+	rootCmd.AddCommand(report.NewReportCommand())
 
 	err := rootCmd.Execute()
 	if err != nil {

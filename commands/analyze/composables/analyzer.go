@@ -3,6 +3,8 @@ package composables
 
 import (
 	"sort"
+
+	"github.com/grove-platform/audit-cli/internal/snooty"
 )
 
 // AnalyzeComposables analyzes composables and groups them by similarity.
@@ -80,7 +82,7 @@ func areComposablesIdentical(locs []ComposableLocation) bool {
 }
 
 // composablesEqual checks if two composables are identical.
-func composablesEqual(a, b Composable) bool {
+func composablesEqual(a, b snooty.Composable) bool {
 	// Compare basic fields
 	if a.ID != b.ID || a.Title != b.Title || a.Default != b.Default {
 		return false
@@ -105,7 +107,7 @@ func composablesEqual(a, b Composable) bool {
 }
 
 // optionsToSortedStrings converts options to sorted strings for comparison.
-func optionsToSortedStrings(options []ComposableOption) []string {
+func optionsToSortedStrings(options []snooty.ComposableOption) []string {
 	var strs []string
 	for _, opt := range options {
 		strs = append(strs, opt.ID+":"+opt.Title)
@@ -195,7 +197,7 @@ func findSimilarComposables(locations []ComposableLocation, groupsByID map[strin
 
 // calculateOptionSimilarity calculates the Jaccard similarity between two composables' option sets.
 // Returns a value between 0 and 1, where 1 means identical option sets.
-func calculateOptionSimilarity(a, b Composable) float64 {
+func calculateOptionSimilarity(a, b snooty.Composable) float64 {
 	// Get option IDs for both composables
 	aOptions := make(map[string]bool)
 	for _, opt := range a.Options {

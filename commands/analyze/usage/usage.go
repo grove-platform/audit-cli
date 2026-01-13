@@ -17,6 +17,7 @@ import (
 	"fmt"
 
 	"github.com/grove-platform/audit-cli/internal/config"
+	"github.com/grove-platform/audit-cli/internal/rst"
 	"github.com/spf13/cobra"
 )
 
@@ -168,14 +169,13 @@ Examples:
 func runUsage(targetFile, format string, verbose, countOnly, pathsOnly, summaryOnly bool, directiveType string, includeToctree bool, excludePattern string, recursive bool) error {
 	// Validate directive type if specified
 	if directiveType != "" {
-		validTypes := map[string]bool{
-			"include":         true,
-			"literalinclude":  true,
-			"io-code-block":   true,
-			"toctree":         true,
+		validTypes := make(map[rst.DirectiveType]bool)
+		for _, dt := range ValidDirectiveTypes {
+			validTypes[dt] = true
 		}
-		if !validTypes[directiveType] {
-			return fmt.Errorf("invalid directive type: %s (must be 'include', 'literalinclude', 'io-code-block', or 'toctree')", directiveType)
+		if !validTypes[rst.DirectiveType(directiveType)] {
+			return fmt.Errorf("invalid directive type: %s (must be '%s', '%s', '%s', or '%s')",
+				directiveType, rst.Include, rst.LiteralInclude, rst.IoCodeBlock, rst.Toctree)
 		}
 	}
 
@@ -221,7 +221,7 @@ func runUsage(targetFile, format string, verbose, countOnly, pathsOnly, summaryO
 
 	// Filter by directive type if specified
 	if directiveType != "" {
-		analysis = FilterByDirectiveType(analysis, directiveType)
+		analysis = FilterByDirectiveType(analysis, rst.DirectiveType(directiveType))
 	}
 
 	// Handle count-only output

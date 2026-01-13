@@ -1,0 +1,22 @@
+name = "test-project"
+title = "Test Project"
+
+[[composables]]
+id = "language"
+title = "Language"
+default = "python"
+options = [
+  {id = "python", title = "Python"},
+  {id = "nodejs", title = "Node.js"},
+  {id = "go", title = "Go"},
+]
+
+[[composables]]
+id = "interface"
+title = "Interface"
+default = "driver"
+options = [
+  {id = "driver", title = "Driver"},
+  {id = "mongosh", title = "MongoDB Shell"},
+]
+

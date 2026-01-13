@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/grove-platform/audit-cli/internal/snooty"
 )
 
 // PrintResults prints the analysis results in a formatted table.
@@ -235,7 +237,7 @@ func printAllComposablesTable(locations []ComposableLocation, verbose bool) {
 }
 
 // formatOptions formats options as a comma-separated list of IDs.
-func formatOptions(options []ComposableOption) string {
+func formatOptions(options []snooty.ComposableOption) string {
 	var ids []string
 	for _, opt := range options {
 		ids = append(ids, opt.ID)
@@ -244,7 +246,7 @@ func formatOptions(options []ComposableOption) string {
 }
 
 // formatOptionsAsBullets formats options as bullet points for table display.
-func formatOptionsAsBullets(options []ComposableOption) []string {
+func formatOptionsAsBullets(options []snooty.ComposableOption) []string {
 	var lines []string
 	for _, opt := range options {
 		lines = append(lines, fmt.Sprintf("• %s: %s", opt.ID, opt.Title))
@@ -253,7 +255,7 @@ func formatOptionsAsBullets(options []ComposableOption) []string {
 }
 
 // printOptionsVerbose prints options in verbose format with wrapping.
-func printOptionsVerbose(options []ComposableOption, indent string) {
+func printOptionsVerbose(options []snooty.ComposableOption, indent string) {
 	const maxWidth = 100 // Maximum width for wrapped text
 
 	for _, opt := range options {
@@ -309,13 +311,13 @@ func truncate(s string, maxLen int) string {
 }
 
 // findCommonOptions finds options that appear in all composables in the group.
-func findCommonOptions(locations []ComposableLocation) []ComposableOption {
+func findCommonOptions(locations []ComposableLocation) []snooty.ComposableOption {
 	if len(locations) == 0 {
 		return nil
 	}
 
 	// Start with options from the first composable
-	commonMap := make(map[string]ComposableOption)
+	commonMap := make(map[string]snooty.ComposableOption)
 	for _, opt := range locations[0].Composable.Options {
 		commonMap[opt.ID] = opt
 	}
@@ -336,7 +338,7 @@ func findCommonOptions(locations []ComposableLocation) []ComposableOption {
 	}
 
 	// Convert map to sorted slice
-	var common []ComposableOption
+	var common []snooty.ComposableOption
 	for _, opt := range commonMap {
 		common = append(common, opt)
 	}
