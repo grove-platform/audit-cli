@@ -9,10 +9,11 @@ import (
 	"github.com/grove-platform/audit-cli/internal/snooty"
 )
 
-// PageEntry represents a single page from the analytics CSV.
+// PageEntry represents a single page from the analytics CSV or docs set scan.
 type PageEntry struct {
-	Rank int
-	URL  string
+	Rank    int
+	URL     string
+	DocsSet string // Content directory name (populated when scanning docs sets)
 }
 
 // CodeExample represents a single code example found in a page.
@@ -66,6 +67,7 @@ type ProductStats struct {
 type PageReport struct {
 	Rank               int
 	URL                string
+	DocsSet            string // Content directory name (populated when scanning docs sets)
 	SourcePath         string
 	ContentDir         string
 	Error              string
@@ -73,8 +75,10 @@ type PageReport struct {
 	TotalInput         int
 	TotalOutput        int
 	TotalTested        int
+	TotalUntested      int // TotalExamples - TotalTested
 	TotalTestable      int
 	TotalMaybeTestable int
+	NeedsToBeTested    bool // True if TotalTestable > TotalTested
 	ByProduct          map[string]*ProductStats
 }
 

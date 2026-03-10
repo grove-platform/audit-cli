@@ -9,10 +9,11 @@ import (
 )
 
 // BuildPageReport builds a PageReport from a PageAnalysis.
-func BuildPageReport(analysis *PageAnalysis) PageReport {
+func BuildPageReport(analysis *PageAnalysis, docsSet string) PageReport {
 	report := PageReport{
 		Rank:       analysis.Rank,
 		URL:        analysis.URL,
+		DocsSet:    docsSet,
 		SourcePath: analysis.SourcePath,
 		ContentDir: analysis.ContentDir,
 		Error:      analysis.Error,
@@ -64,6 +65,10 @@ func BuildPageReport(analysis *PageAnalysis) PageReport {
 			stats.MaybeTestableCount++
 		}
 	}
+
+	// Compute derived fields
+	report.TotalUntested = report.TotalExamples - report.TotalTested
+	report.NeedsToBeTested = report.TotalTestable > report.TotalTested
 
 	return report
 }
@@ -166,7 +171,7 @@ func outputCSVSummary(w io.Writer, reports []PageReport) error {
 	for _, report := range reports {
 		// Escape fields that might contain commas or quotes
 		url := escapeCSV(report.URL)
-		sourcePath := escapeCSV(report.SourcePath)
+		sourcePath := escapeCSV(makeSourcePathRelative(report.SourcePath))
 		contentDir := escapeCSV(report.ContentDir)
 		errorMsg := escapeCSV(report.Error)
 
@@ -189,7 +194,7 @@ func outputCSVDetails(w io.Writer, reports []PageReport) error {
 	for _, report := range reports {
 		// Escape fields that might contain commas or quotes
 		url := escapeCSV(report.URL)
-		sourcePath := escapeCSV(report.SourcePath)
+		sourcePath := escapeCSV(makeSourcePathRelative(report.SourcePath))
 		contentDir := escapeCSV(report.ContentDir)
 		errorMsg := escapeCSV(report.Error)
 
@@ -236,6 +241,24 @@ func outputCSVDetails(w io.Writer, reports []PageReport) error {
 	}
 
 	return nil
+}
+
+// makeSourcePathRelative converts an absolute source path to be relative to the content directory.
+// For example: /path/to/monorepo/content/cloud-docs/source/page.txt -> cloud-docs/source/page.txt
+func makeSourcePathRelative(sourcePath string) string {
+	if sourcePath == "" {
+		return ""
+	}
+
+	// Find the content directory marker and return everything after it
+	const contentMarker = "/content/"
+	idx := strings.Index(sourcePath, contentMarker)
+	if idx >= 0 {
+		return sourcePath[idx+len(contentMarker):]
+	}
+
+	// Fallback: return the original path if content marker not found
+	return sourcePath
 }
 
 // escapeCSV escapes a string for CSV output.

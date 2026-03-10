@@ -14,14 +14,14 @@ import (
 func createMockURLMapping() *config.URLMapping {
 	return &config.URLMapping{
 		URLSlugToProject: map[string]string{
-			"drivers/go":                     "golang",
-			"drivers/node":                   "node",
-			"drivers/csharp":                 "csharp",
+			"drivers/go":                      "golang",
+			"drivers/node":                    "node",
+			"drivers/csharp":                  "csharp",
 			"languages/python/pymongo-driver": "pymongo",
-			"drivers/java/sync":              "java",
-			"mongodb-shell":                  "mongodb-shell",
-			"mongoid":                        "mongoid",
-			"ruby-driver":                    "ruby-driver",
+			"drivers/java/sync":               "java",
+			"mongodb-shell":                   "mongodb-shell",
+			"mongoid":                         "mongoid",
+			"ruby-driver":                     "ruby-driver",
 		},
 		DriverSlugs: []string{
 			"drivers/csharp",
@@ -446,8 +446,8 @@ func TestIsMaybeTestable(t *testing.T) {
 // TestParseComposableOptions tests the parseComposableOptions function.
 func TestParseComposableOptions(t *testing.T) {
 	testCases := []struct {
-		options          string
-		expectedLanguage string
+		options           string
+		expectedLanguage  string
 		expectedInterface string
 	}{
 		{"language=python; interface=driver", "python", "driver"},
@@ -490,7 +490,7 @@ func TestBuildPageReport(t *testing.T) {
 		},
 	}
 
-	report := BuildPageReport(analysis)
+	report := BuildPageReport(analysis, "")
 
 	if report.Rank != 1 {
 		t.Errorf("Expected Rank 1, got %d", report.Rank)
@@ -506,6 +506,13 @@ func TestBuildPageReport(t *testing.T) {
 	}
 	if report.TotalTested != 1 {
 		t.Errorf("Expected TotalTested 1, got %d", report.TotalTested)
+	}
+	// Verify new computed fields
+	if report.TotalUntested != 4 {
+		t.Errorf("Expected TotalUntested 4 (5-1), got %d", report.TotalUntested)
+	}
+	if !report.NeedsToBeTested {
+		t.Errorf("Expected NeedsToBeTested true (4 testable > 1 tested), got false")
 	}
 	if report.TotalTestable != 4 {
 		t.Errorf("Expected TotalTestable 4, got %d", report.TotalTestable)
@@ -600,9 +607,9 @@ func TestDetermineProduct(t *testing.T) {
 			"go":     "Go",
 		},
 		ComposableInterfaceToProduct: map[string]string{
-			"mongosh":  "MongoDB Shell",
-			"driver":   "Driver",
-			"compass":  "Compass",
+			"mongosh": "MongoDB Shell",
+			"driver":  "Driver",
+			"compass": "Compass",
 		},
 	}
 
@@ -1171,4 +1178,3 @@ func TestAnalyzePage(t *testing.T) {
 		}
 	})
 }
-
