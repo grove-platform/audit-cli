@@ -10,6 +10,7 @@
 //   - analyze: Analyze RST file structures and relationships
 //   - compare: Compare files across different versions
 //   - count: Count documentation content (code examples, pages)
+//   - resolve: Resolve paths and URLs between source files and production
 package main
 
 import (
@@ -20,6 +21,7 @@ import (
 	"github.com/grove-platform/audit-cli/commands/count"
 	"github.com/grove-platform/audit-cli/commands/extract"
 	"github.com/grove-platform/audit-cli/commands/report"
+	"github.com/grove-platform/audit-cli/commands/resolve"
 	"github.com/grove-platform/audit-cli/commands/search"
 	"github.com/spf13/cobra"
 )
@@ -55,6 +57,7 @@ Designed for maintenance tasks, scoping work, and reporting to stakeholders.`,
 	rootCmd.AddCommand(compare.NewCompareCommand())
 	rootCmd.AddCommand(count.NewCountCommand())
 	rootCmd.AddCommand(report.NewReportCommand())
+	rootCmd.AddCommand(resolve.NewResolveCommand())
 
 	err := rootCmd.Execute()
 	if err != nil {

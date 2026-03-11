@@ -13,6 +13,7 @@ A Go CLI tool for performing audit-related tasks in the MongoDB documentation mo
   - [Compare Commands](#compare-commands)
   - [Count Commands](#count-commands)
   - [Report Commands](#report-commands)
+  - [Resolve Commands](#resolve-commands)
 - [Development](#development)
   - [Project Structure](#project-structure)
   - [Adding New Commands](#adding-new-commands)
@@ -56,7 +57,7 @@ go run main.go [command] [flags]
 
 ### Monorepo Path Configuration
 
-Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`). You can configure the monorepo path in three ways, listed in order of priority:
+Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`, `report testable-code --for-docs-set`). You can configure the monorepo path in three ways, listed in order of priority:
 
 ### 1. Command-Line Argument (Highest Priority)
 
@@ -66,6 +67,7 @@ Pass the path directly to the command:
 ./audit-cli analyze composables /path/to/docs-monorepo
 ./audit-cli count tested-examples /path/to/docs-monorepo
 ./audit-cli count pages /path/to/docs-monorepo
+./audit-cli report testable-code --for-docs-set manual /path/to/docs-monorepo
 ```
 
 ### 2. Environment Variable
@@ -82,6 +84,7 @@ export AUDIT_CLI_MONOREPO_PATH=/path/to/docs-monorepo
 ### 3. Config File (Lowest Priority)
 
 Create a `.audit-cli.yaml` file in either:
+
 - Current directory: `./.audit-cli.yaml`
 - Home directory: `~/.audit-cli.yaml`
 
@@ -150,6 +153,7 @@ If the path doesn't exist relative to the monorepo, it falls back to the current
 ```
 
 **Priority Order:**
+
 1. If path is absolute → use as-is
 2. If monorepo is configured and path exists relative to monorepo → use monorepo-relative path
 3. Otherwise → resolve relative to current directory
@@ -177,8 +181,10 @@ audit-cli
 ├── count            # Count code examples and documentation pages
 │   ├── tested-examples
 │   └── pages
-└── report           # Generate reports from documentation data
-    └── testable-code
+├── report           # Generate reports from documentation data
+│   └── testable-code
+└── resolve          # Resolve documentation paths and URLs
+    └── url
 ```
 
 ### Extract Commands
@@ -192,6 +198,7 @@ section below.
 **Use Cases:**
 
 This command helps writers:
+
 - Examine all the code examples that make up a specific page or section
 - Split out code examples into individual files for migration to test infrastructure
 - Report on the number of code examples by language
@@ -241,7 +248,7 @@ This command helps writers:
   will only extract code examples from the top-level RST file. If you do provide this flag, the tool will follow any
   `.. include::` directives in the RST file and extract code examples from all included files. When combined with `-r`,
   the tool will recursively scan all subdirectories for RST files and follow `.. include::` directives in all files. If
-  an include filepath is *outside* the input directory, the `-r` flag would not parse it, but the `-f` flag would
+  an include filepath is _outside_ the input directory, the `-r` flag would not parse it, but the `-f` flag would
   follow the include directive and parse the included file. This effectively lets you parse all the files that make up
   a single page, if you start from the page's root `.txt` file.
 - `--dry-run` - Show what would be extracted without writing files
@@ -252,6 +259,7 @@ This command helps writers:
 Extracted files are named: `{source-base}.{directive-type}.{index}.{ext}`
 
 Examples:
+
 - `my-doc.code-block.1.js` - First code-block from my-doc.rst
 - `my-doc.literalinclude.2.py` - Second literalinclude from my-doc.rst
 - `my-doc.io-code-block.1.input.js` - Input from first io-code-block
@@ -260,6 +268,7 @@ Examples:
 **Report:**
 
 After extraction, the code extraction report shows:
+
 - Number of files traversed
 - Number of output files written
 - Code examples by language
@@ -274,6 +283,7 @@ even if it appears in multiple selections or variations.
 **Use Cases:**
 
 This command helps writers:
+
 - Extract all unique procedures from a page for testing or migration
 - Generate individual procedure files for each distinct procedure
 - Understand how many different procedures exist in a document
@@ -312,11 +322,13 @@ This command helps writers:
 Extracted files are named: `{heading}_{first-step-title}_{hash}.rst`
 
 The filename includes:
+
 - **Heading**: The section heading above the procedure
 - **First step title**: The title of the first step (for readability)
 - **Hash**: A short 6-character hash of the content (for uniqueness)
 
 Examples:
+
 - `before-you-begin_pull-the-mongodb-docker-image_e8eeec.rst`
 - `install-mongodb-community-edition_download-the-tarball_44c437.rst`
 - `configuration_create-the-data-and-log-directories_f1d35b.rst`
@@ -345,6 +357,7 @@ Found 36 unique procedures:
 **Supported Procedure Types:**
 
 The command recognizes and extracts:
+
 - `.. procedure::` directives with `.. step::` directives
 - Ordered lists (numbered or lettered) as procedures
 - `.. tabs::` directives with `:tabid:` options for variations
@@ -355,10 +368,12 @@ The command recognizes and extracts:
 **How Uniqueness is Determined:**
 
 Procedures are grouped by:
+
 1. **Heading**: The section heading above the procedure
 2. **Content hash**: A hash of the procedure's steps and content
 
 This means:
+
 - Procedures with the same heading but different content are treated as separate unique procedures
 - Procedures with identical content that appear in multiple selections are extracted once
 - The output file shows all selections where that procedure appears (visible with `-v` flag)
@@ -366,6 +381,7 @@ This means:
 **Report:**
 
 After extraction, the report shows:
+
 - Number of unique procedures extracted
 - Number of files written
 - Detailed list of procedures with step counts and selections (with `-v` flag)
@@ -378,6 +394,7 @@ Search through files for a specific substring. Can search through extracted code
 source files.
 
 **Default Behavior:**
+
 - **Case-insensitive** search (matches "curl", "CURL", "Curl", etc.)
 - **Exact word matching** (excludes partial matches like "curl" in "libcurl")
 
@@ -387,6 +404,7 @@ of larger words.
 **Use Cases:**
 
 This command helps writers:
+
 - Find specific strings across documentation files or pages
   - Search for product names, command names, API methods, or other strings that may need to be updated
 - Understand the number of references and impact of changes across documentation files or pages
@@ -433,7 +451,7 @@ This command helps writers:
   will search only the top-level RST file or directory. If you do provide this flag, the tool will follow any
   `.. include::` directives in any RST file in the input path and search across all included files. When
   combined with `-r`, the tool will recursively scan all subdirectories for RST files and follow `.. include::` directives
-  in all files. If an include filepath is *outside* the input directory, the `-r` flag would not parse it, but the `-f`
+  in all files. If an include filepath is _outside_ the input directory, the `-r` flag would not parse it, but the `-f`
   flag would follow the include directive and search the included file. This effectively lets you parse all the files
   that make up a single page, if you start from the page's root `.txt` file.
 - `-v, --verbose` - Show file paths and language breakdown
@@ -443,10 +461,12 @@ This command helps writers:
 **Report:**
 
 The search report shows:
+
 - Number of files scanned
 - Number of files containing the substring (each file counted once)
 
 With `-v` flag, also shows:
+
 - List of file paths where substring appears
 - Count broken down by language (file extension)
 
@@ -462,6 +482,7 @@ This helps you understand which content is transcluded into a page.
 **Use Cases:**
 
 This command helps writers:
+
 - Understand the impact of changes to widely-included files
 - Identify files included multiple times
 - Document file relationships for maintenance
@@ -496,6 +517,7 @@ This command helps writers:
 **Output Formats:**
 
 **Summary** (default - no flags):
+
 ```
 ============================================================
 INCLUDE ANALYSIS SUMMARY
@@ -509,6 +531,7 @@ Max Depth: 2
 Use --tree to see the hierarchical structure
 Use --list to see a flat list of all files
 ```
+
 - Root file path
 - Number of unique files discovered
 - Total number of include directive instances (counting duplicates)
@@ -516,6 +539,7 @@ Use --list to see a flat list of all files
 - Hints to use --tree or --list for more details
 
 **Tree** (--tree flag):
+
 - Hierarchical tree structure showing include relationships
 - Uses box-drawing characters for visual clarity
 - Shows which files include which other files
@@ -524,17 +548,20 @@ Use --list to see a flat list of all files
   - Files outside `includes`: `path/from/source/filename.rst`
 
 **List** (--list flag):
+
 - Flat numbered list of all unique files
 - Files listed in depth-first traversal order
 - Shows absolute paths to all files
 
 **Verbose** (-v flag):
+
 - Shows complete dependency tree with all nodes (including duplicates)
 - Each file displays the number of include directives it contains
 - Uses visual indicators to show duplicate includes:
   - `•` (filled bullet) - First occurrence of a file
   - `◦` (hollow bullet) - Subsequent occurrences (duplicates)
 - Example output:
+
 ```
 • get-started.txt (24 include directives)
   • get-started/node/language-connection-steps.rst (3 include directives)
@@ -585,6 +612,7 @@ io-code-block) that transclude content into pages. Use `--include-toctree` to al
 for toctree entries, which are navigation links rather than content transclusion.
 
 This command helps writers:
+
 - Understand the impact of changes to a file (what pages will be affected)
 - Find all usages of an include file across the documentation
 - Track where code examples are referenced
@@ -623,10 +651,12 @@ This command helps writers:
 **Understanding the Counts:**
 
 The command shows two metrics:
+
 - **Total Files**: Number of unique files that use the target (deduplicated)
 - **Total Usages**: Total number of directive occurrences (includes duplicates)
 
 When a file includes the target multiple times, it counts as:
+
 - 1 file (in Total Files)
 - Multiple usages (in Total Usages)
 
@@ -637,17 +667,20 @@ This helps identify both the impact scope (how many files) and duplicate include
 By default, the command tracks content inclusion directives:
 
 1. **`.. include::`** - RST content includes (transcluded)
+
    ```rst
    .. include:: /includes/intro.rst
    ```
 
 2. **`.. literalinclude::`** - Code file references (transcluded)
+
    ```rst
    .. literalinclude:: /code-examples/example.py
       :language: python
    ```
 
 3. **`.. io-code-block::`** - Input/output examples with file arguments (transcluded)
+
    ```rst
    .. io-code-block::
 
@@ -661,6 +694,7 @@ By default, the command tracks content inclusion directives:
 With `--include-toctree`, also tracks:
 
 4. **`.. toctree::`** - Table of contents entries (navigation links, not transcluded)
+
    ```rst
    .. toctree::
       :maxdepth: 2
@@ -675,6 +709,7 @@ is not tracked since it doesn't reference external files.
 **Output Formats:**
 
 **Text** (default):
+
 ```
 ============================================================
 USAGE ANALYSIS
@@ -693,6 +728,7 @@ include             : 3 files, 4 usages
 ```
 
 **Text with --verbose:**
+
 ```
 ============================================================
 USAGE ANALYSIS
@@ -715,6 +751,7 @@ include             : 3 files, 4 usages
 ```
 
 **JSON** (--format json):
+
 ```json
 {
   "target_file": "/path/to/includes/intro.rst",
@@ -802,6 +839,7 @@ Analyze procedures in reStructuredText files to understand procedure complexity,
 different selections.
 
 This command parses procedures from RST files and provides statistics about:
+
 - Total number of unique procedures (grouped by heading and content)
 - Total number of procedure appearances across all selections
 - Implementation types (procedure directive vs ordered list)
@@ -812,6 +850,7 @@ This command parses procedures from RST files and provides statistics about:
 **Use Cases:**
 
 This command helps writers:
+
 - Understand the complexity of procedures in a document
 - Count how many unique procedures exist vs. how many times they appear
 - Identify procedures that use different implementation approaches
@@ -844,6 +883,7 @@ This command helps writers:
 **Output:**
 
 **Default output (summary only):**
+
 ```
 File: path/to/file.rst
 Total unique procedures: 36
@@ -851,6 +891,7 @@ Total procedure appearances: 93
 ```
 
 **With `--list-summary`:**
+
 ```
 File: path/to/file.rst
 Total unique procedures: 36
@@ -865,6 +906,7 @@ Unique Procedures:
 ```
 
 **With `--list-all`:**
+
 ```
 File: path/to/file.rst
 Total unique procedures: 36
@@ -920,12 +962,14 @@ The command reports two key metrics:
    - This represents the total number of procedure instances a user might encounter
 
 **Example:**
+
 - A file might have **36 unique procedures** that appear a total of **93 times** across different selections
 - This means some procedures appear in multiple selections (e.g., a "Before You Begin" procedure that's the same for Docker with and without search)
 
 **Supported Procedure Types:**
 
 The command recognizes:
+
 - `.. procedure::` directives with `.. step::` directives
 - Ordered lists (numbered or lettered) as procedures
 - `.. tabs::` directives with `:tabid:` options for variations
@@ -936,6 +980,7 @@ The command recognizes:
 **Deterministic Parsing:**
 
 The parser ensures deterministic results by:
+
 - Sorting all map iterations to ensure consistent ordering
 - Sorting procedures by line number
 - Computing content hashes in a consistent manner
@@ -952,6 +997,7 @@ Composables are configuration elements in `snooty.toml` that define content vari
 **Use Cases:**
 
 This command helps writers:
+
 - Inventory all composables across projects and versions
 - Identify identical composables that could be consolidated across projects
 - Find similar composables with different IDs but overlapping options (potential consolidation candidates)
@@ -1002,6 +1048,7 @@ This command helps writers:
 **Output:**
 
 **Default output (summary and table):**
+
 ```
 Composables Analysis
 ====================
@@ -1029,6 +1076,7 @@ atlas                (none)          language                       Language    
 Shows two types of consolidation opportunities:
 
 1. **Identical Composables** - Same ID, title, and options across different projects/versions
+
    ```
    Identical Composables (Consolidation Candidates)
    ================================================
@@ -1047,6 +1095,7 @@ Shows two types of consolidation opportunities:
    ```
 
 2. **Similar Composables** - Different IDs but similar option sets (60%+ overlap)
+
    ```
    Similar Composables (Review Recommended)
    ========================================
@@ -1109,6 +1158,7 @@ Total usages: 1
 **Understanding Composables:**
 
 Composables are defined in `snooty.toml` files:
+
 ```toml
 [[composables]]
 id = "language"
@@ -1125,6 +1175,7 @@ title = "Node.js"
 ```
 
 They're used in RST files with `.. composable-tutorial::` directives:
+
 ```rst
 .. composable-tutorial::
    :options: language, interface
@@ -1145,6 +1196,7 @@ They're used in RST files with `.. composable-tutorial::` directives:
 The command uses Jaccard similarity (intersection / union) to compare option sets between composables with different IDs. A 60% similarity threshold is used to identify potential consolidation candidates.
 
 For example, if you have:
+
 - `language` with 15 options
 - `language-atlas-only` with 14 options (13 in common with `language`)
 - `language-local-only` with 14 options (13 in common with `language`)
@@ -1156,12 +1208,14 @@ These would be flagged as similar composables (93.3% similarity) and potential c
 #### `compare file-contents`
 
 Compare file contents to identify differences between files. Supports two modes:
+
 1. **Direct comparison** - Compare two specific files
 2. **Version comparison** - Compare the same file across multiple documentation versions
 
 **Use Cases:**
 
 This command helps writers:
+
 - Identify content drift across documentation versions
 - Verify that updates have been applied consistently
 - Scope maintenance work when updating shared content
@@ -1219,6 +1273,7 @@ Provide two file paths as arguments:
 ```
 
 This mode:
+
 - Compares exactly two files
 - Reports whether they are identical or different
 - Can show unified diff with `--show-diff`
@@ -1239,6 +1294,7 @@ Provide one file path. The product directory and versions are automatically dete
 ```
 
 This mode:
+
 - Automatically detects the product directory from the file path
 - Auto-discovers all available versions (unless `--versions` is specified)
 - Extracts the relative path from the reference file
@@ -1249,6 +1305,7 @@ This mode:
 **Version Directory Structure:**
 
 The tool expects MongoDB documentation to be organized as:
+
 ```
 product-dir/
 ├── manual/
@@ -1268,17 +1325,20 @@ product-dir/
 **Output Formats:**
 
 **Summary** (default - no flags):
+
 - Total number of versions compared
 - Count of matching, differing, and missing files
 - Hints to use `--show-paths` or `--show-diff` for more details
 
 **With --show-paths:**
+
 - Summary (as above)
 - List of files that match (with ✓)
 - List of files that differ (with ✗)
 - List of files not found (with -)
 
 **With --show-diff:**
+
 - Summary and paths (as above)
 - Unified diff output for each differing file
 - Shows added lines (prefixed with +)
@@ -1330,6 +1390,7 @@ This command navigates to the `content/code-examples/tested` directory from the 
 **Use Cases:**
 
 This command helps writers and maintainers:
+
 - Track the total number of tested code examples
 - Monitor code example coverage by product
 - Identify products with few or many examples
@@ -1383,6 +1444,7 @@ This command navigates to the `content` directory and recursively counts all `.t
 **Use Cases:**
 
 This command helps writers and maintainers:
+
 - Track the total number of documentation pages across the monorepo
 - Monitor documentation coverage by product/project
 - Identify projects with extensive or minimal documentation
@@ -1393,6 +1455,7 @@ This command helps writers and maintainers:
 **Automatic Exclusions:**
 
 The command automatically excludes:
+
 - Files in `code-examples` directories at the root of `content` or `source` (these contain plain text examples, not pages)
 - Files in the following directories at the root of `content`:
   - `404` - Error pages
@@ -1444,10 +1507,12 @@ By default, prints a single integer (total count) for use in CI or scripting. Wi
 **Versioned Documentation:**
 
 Some MongoDB documentation projects contain multiple versions, represented as distinct directories between the project directory and the `source` directory:
+
 - **Versioned project structure**: `content/{project}/{version}/source/...`
 - **Non-versioned project structure**: `content/{project}/source/...`
 
 Version directory names follow these patterns:
+
 - `current` or `manual` - The current/latest version
 - `upcoming` - Pre-release version
 - `v{number}` - Specific version (e.g., `v8.0`, `v7.0`)
@@ -1511,18 +1576,25 @@ echo "Total documentation pages: $TOTAL_PAGES"
 
 #### `report testable-code`
 
-Analyze testable code examples on documentation pages based on analytics CSV data.
+Analyze testable code examples on documentation pages based on analytics CSV data or by scanning documentation sets directly.
 
-This command takes a CSV file with page rankings and URLs, resolves each URL to its source file in the monorepo, collects code examples (literalinclude, code-block, io-code-block), and generates a report with testability information.
+This command resolves URLs to source files in the monorepo, collects code examples (literalinclude, code-block, io-code-block), and generates a report with testability information.
+
+**Input Modes:**
+
+1. **CSV Mode** (default): Takes a CSV file with page rankings and URLs
+2. **Docs Set Mode**: Scan all pages in specified content directories using `--for-docs-set`
 
 **Use Cases:**
 
 This command helps writers and maintainers:
+
 - Identify high-traffic pages with untested code examples
 - Prioritize which pages to add test coverage to
 - Track the ratio of tested vs testable code examples
 - Understand code example distribution by product/language
 - Find "maybe testable" examples that need manual review
+- Scan entire documentation sets for testability analysis
 
 **Key Concepts:**
 
@@ -1533,11 +1605,20 @@ This command helps writers and maintainers:
 **Examples:**
 
 ```bash
-# Analyze pages from a CSV file (specify monorepo path)
+# CSV Mode: Analyze pages from a CSV file (specify monorepo path)
 ./audit-cli report testable-code analytics.csv /path/to/docs-monorepo
 
-# Use configured monorepo path (from config file or environment variable)
+# CSV Mode: Use configured monorepo path (from config file or environment variable)
 ./audit-cli report testable-code analytics.csv
+
+# Docs Set Mode: Scan all pages in specified docs sets
+./audit-cli report testable-code --for-docs-set cloud-docs,golang,node
+
+# Docs Set Mode: Scan only a specific version
+./audit-cli report testable-code --for-docs-set manual --version v8.0
+
+# Docs Set Mode: Scan all versions (not just current)
+./audit-cli report testable-code --for-docs-set manual --current-only=false
 
 # Output as JSON to a file
 ./audit-cli report testable-code analytics.csv --format json --output report.json
@@ -1562,9 +1643,24 @@ rank,url
 
 **Flags:**
 
+Input mode flags:
+
+- `--for-docs-set <names>` - Scan all pages in specified docs sets (content directory names, comma-separated). Enables Docs Set Mode instead of CSV Mode. Requires a configured monorepo path (see [Monorepo Path Configuration](#monorepo-path-configuration)).
+
+Version filtering flags (only apply in Docs Set Mode):
+
+- `--version <version>` - Only include pages from specified version (e.g., `v8.0`, `current`, `upcoming`). Overrides `--current-only`.
+- `--current-only` - Only include current version pages (default: `true`). Use `--current-only=false` to scan all versions.
+- `--base-url <url>` - Base URL for resolving page URLs (default: `https://www.mongodb.com/docs`)
+
+Output flags:
+
 - `--format, -f <format>` - Output format: `text` (default), `json`, or `csv`
 - `--output, -o <file>` - Output file path (default: stdout)
 - `--details` - Show detailed per-product breakdown (for CSV output, includes per-product columns)
+
+Filter flags:
+
 - `--filter <filter>` - Filter pages by product area (can be specified multiple times)
 - `--list-drivers` - List all available driver filter options from the Snooty Data API
 
@@ -1573,6 +1669,7 @@ rank,url
 Use the `--filter` flag to focus on specific product areas. Multiple filters can be specified to include pages matching any filter.
 
 Available filters:
+
 - `search` - Pages with "atlas-search" or "search" in URL (excludes vector-search)
 - `vector-search` - Pages with "vector-search" in URL
 - `drivers` - All MongoDB driver documentation pages
@@ -1598,6 +1695,7 @@ The `--list-drivers` flag queries the Snooty Data API to show all available driv
 **Testable Products:**
 
 Products with test infrastructure (code examples for these products are marked as "testable"):
+
 - C#
 - Go
 - Java (Sync)
@@ -1649,6 +1747,90 @@ Source: content/node/current/source/quick-start.txt
   --------------------------------------------------------------------
   TOTAL                    8      4      4      2        6      0
 ```
+
+### Resolve Commands
+
+#### `resolve url`
+
+Resolve a documentation source file (.txt) to its production URL.
+
+This command takes a source file path from the docs monorepo and resolves it to the corresponding production URL on `mongodb.com/docs`. The URL mapping is derived from the table-of-contents data, which is the source of truth for production URLs.
+
+**Use Cases:**
+
+This command helps writers:
+
+- Quickly find the production URL for any source file
+- Generate URLs for reports and documentation
+- Verify URL structure for new or moved pages
+- Include production links in code example reports
+
+**Basic Usage:**
+
+```bash
+# Resolve a non-versioned project file (e.g., Atlas)
+./audit-cli resolve url content/atlas/source/manage-clusters.txt
+# Output: https://www.mongodb.com/docs/atlas/manage-clusters/
+
+# Resolve a versioned project file (e.g., Go Driver)
+./audit-cli resolve url content/golang/current/source/atlas-search.txt
+# Output: https://www.mongodb.com/docs/drivers/go/current/atlas-search/
+
+# Resolve the MongoDB Manual
+./audit-cli resolve url content/manual/manual/source/indexes.txt
+# Output: https://www.mongodb.com/docs/manual/indexes/
+
+# Resolve an index file (results in trailing slash)
+./audit-cli resolve url content/compass/source/index.txt
+# Output: https://www.mongodb.com/docs/compass/
+
+# Use a different base URL (e.g., for staging)
+./audit-cli resolve url content/atlas/source/index.txt --base-url https://docs-staging.mongodb.com
+# Output: https://docs-staging.mongodb.com/atlas/
+```
+
+**Flags:**
+
+- `--base-url <url>` - Base URL for production documentation (default: `https://www.mongodb.com/docs`)
+
+**Path Resolution:**
+
+The command supports flexible path input:
+
+1. **Absolute path** - Full path to the source file
+2. **Relative to monorepo root** - If monorepo is configured (via config file or environment variable)
+3. **Relative to current directory** - Fallback
+
+**URL Construction:**
+
+The production URL is constructed from:
+
+1. **Base URL** - `https://www.mongodb.com/docs` by default
+2. **URL slug** - Project-specific path segment (e.g., `atlas`, `drivers/go`)
+3. **Version** - For versioned projects (e.g., `current`, `v8.0`, `manual`)
+4. **Page path** - The file's path relative to the `source` directory (without `.txt` extension)
+
+**Examples:**
+
+| Source File                                      | Production URL                                                  |
+| ------------------------------------------------ | --------------------------------------------------------------- |
+| `content/atlas/source/manage-clusters.txt`       | `https://www.mongodb.com/docs/atlas/manage-clusters/`           |
+| `content/golang/current/source/atlas-search.txt` | `https://www.mongodb.com/docs/drivers/go/current/atlas-search/` |
+| `content/app-services/source/logs.txt`           | `https://www.mongodb.com/docs/atlas/app-services/logs/`         |
+| `content/manual/manual/source/index.txt`         | `https://www.mongodb.com/docs/manual/`                          |
+| `content/manual/v8.0/source/indexes.txt`         | `https://www.mongodb.com/docs/v8.0/indexes/`                    |
+| `content/compass/source/index.txt`               | `https://www.mongodb.com/docs/compass/`                         |
+
+**Supported Projects:**
+
+The command supports all projects defined in the documentation monorepo's table-of-contents, including:
+
+- Atlas products (Atlas, Atlas CLI, Atlas Operator, App Services)
+- MongoDB Server documentation (Manual, all versions)
+- Driver documentation (Go, Python, Java, Node.js, C#, Rust, etc.)
+- Tools (Compass, Database Tools, MongoDB Shell, etc.)
+- Connectors (Kafka, Spark, BI Connector)
+- And many more
 
 ## Development
 
@@ -1804,11 +1986,13 @@ audit-cli/
 Example: Adding `extract tables` subcommand
 
 1. **Create the subcommand directory:**
+
    ```bash
    mkdir -p commands/extract/tables
    ```
 
 2. **Create the command file** (`commands/extract/tables/tables.go`):
+
    ```go
    package tables
 
@@ -1835,6 +2019,7 @@ Example: Adding `extract tables` subcommand
    ```
 
 3. **Register the subcommand** in `commands/extract/extract.go`:
+
    ```go
    import (
        "github.com/grove-platform/audit-cli/commands/extract/tables"
@@ -1855,11 +2040,13 @@ Example: Adding `extract tables` subcommand
 Example: Adding `analyze` parent command
 
 1. **Create the parent directory:**
+
    ```bash
    mkdir -p commands/analyze
    ```
 
 2. **Create the parent command** (`commands/analyze/analyze.go`):
+
    ```go
    package analyze
 
@@ -1880,6 +2067,7 @@ Example: Adding `analyze` parent command
    ```
 
 3. **Register in main.go:**
+
    ```go
    import (
        "github.com/grove-platform/audit-cli/commands/analyze"
@@ -1925,6 +2113,7 @@ since it contains non-Go files (`.cpp`, `.rst`, etc.).
 #### Adding New Tests
 
 1. **Create test input files** in `testdata/input-files/source/`:
+
    ```bash
    # Create a new test RST file
    cat > testdata/input-files/source/my-test.rst << 'EOF'
@@ -1935,6 +2124,7 @@ since it contains non-Go files (`.cpp`, `.rst`, etc.).
    ```
 
 2. **Generate expected output**:
+
    ```bash
    ./audit-cli extract code-examples testdata/input-files/source/my-test.rst \
      -o testdata/expected-output
@@ -1943,6 +2133,7 @@ since it contains non-Go files (`.cpp`, `.rst`, etc.).
 3. **Verify the output** is correct before committing
 
 4. **Add test case** in the appropriate `*_test.go` file:
+
    ```go
    func TestMyNewFeature(t *testing.T) {
        testDataDir := filepath.Join("..", "..", "..", "testdata")
@@ -2040,6 +2231,7 @@ func RunMyCommand(arg string, flagValue string) error {
 ```
 
 **Why this pattern?**
+
 - Separates command definition from logic
 - Makes logic testable without Cobra
 - Consistent across all commands
@@ -2153,6 +2345,7 @@ RunE: func(cmd *cobra.Command, args []string) error {
 ```
 
 This allows users to specify paths as:
+
 - Absolute: `/full/path/to/file.rst`
 - Monorepo-relative: `manual/manual/source/file.rst` (if monorepo configured)
 - Current directory-relative: `./file.rst`
@@ -2216,6 +2409,7 @@ The tool extracts code examples from the following reStructuredText directives:
 Extracts code from external files with support for partial extraction and dedenting.
 
 **Syntax:**
+
 ```rst
 .. literalinclude:: /path/to/file.py
    :language: python
@@ -2225,6 +2419,7 @@ Extracts code from external files with support for partial extraction and dedent
 ```
 
 **Supported Options:**
+
 - `:language:` - Specifies the programming language (normalized: `ts` → `typescript`, `c++` → `cpp`, `golang` → `go`)
 - `:start-after:` - Extract content after this tag (skips the entire line containing the tag)
 - `:end-before:` - Extract content before this tag (cuts before the entire line containing the tag)
@@ -2233,6 +2428,7 @@ Extracts code from external files with support for partial extraction and dedent
 **Example:**
 
 Given `code-examples/example.py`:
+
 ```python
 def main():
     # start-example
@@ -2242,6 +2438,7 @@ def main():
 ```
 
 And RST:
+
 ```rst
 .. literalinclude:: /code-examples/example.py
    :language: python
@@ -2251,6 +2448,7 @@ And RST:
 ```
 
 Extracts:
+
 ```python
 result = calculate(42)
 print(result)
@@ -2261,6 +2459,7 @@ print(result)
 Inline code blocks with automatic dedenting based on the first line's indentation.
 
 **Syntax:**
+
 ```rst
 .. code-block:: javascript
    :copyable: false
@@ -2271,6 +2470,7 @@ Inline code blocks with automatic dedenting based on the first line's indentatio
 ```
 
 **Supported Options:**
+
 - Language argument - `.. code-block:: javascript` (optional, defaults to `txt`)
 - `:language:` - Alternative way to specify language
 - `:copyable:` - Parsed but not used for extraction
@@ -2302,6 +2502,7 @@ def hello():
 Input/output code blocks for interactive examples with nested sub-directives.
 
 **Syntax:**
+
 ```rst
 .. io-code-block::
    :copyable: true
@@ -2322,6 +2523,7 @@ Input/output code blocks for interactive examples with nested sub-directives.
 ```
 
 **Supported Options:**
+
 - `:copyable:` - Parsed but not used for extraction
 - Nested `.. input::` sub-directive (required)
   - Can have filepath argument: `.. input:: /path/to/file.js`
@@ -2331,6 +2533,7 @@ Input/output code blocks for interactive examples with nested sub-directives.
   - Or inline content with `:language:` option
 
 **File-based Content:**
+
 ```rst
 .. io-code-block::
 
@@ -2344,6 +2547,7 @@ Input/output code blocks for interactive examples with nested sub-directives.
 **Output Files:**
 
 Generates two files:
+
 - `{source}.io-code-block.{index}.input.{ext}` - The input code
 - `{source}.io-code-block.{index}.output.{ext}` - The output (if present)
 
@@ -2356,6 +2560,7 @@ Example: `my-doc.io-code-block.1.input.js` and `my-doc.io-code-block.1.output.js
 Follows include directives to process entire documentation trees (when `-f` flag is used).
 
 **Syntax:**
+
 ```rst
 .. include:: /includes/intro.rst
 ```
@@ -2365,22 +2570,29 @@ Follows include directives to process entire documentation trees (when `-f` flag
 The tool handles several MongoDB-specific include patterns:
 
 ##### Steps Files
+
 Converts directory-based paths to filename-based paths:
+
 - Input: `/includes/steps/run-mongodb-on-linux.rst`
 - Resolves to: `/includes/steps-run-mongodb-on-linux.yaml`
 
 ##### Extracts and Release Files
+
 Resolves ref-based includes by searching YAML files:
+
 - Input: `/includes/extracts/install-mongodb.rst`
 - Searches: `/includes/extracts-*.yaml` for `ref: install-mongodb`
 - Resolves to: The YAML file containing that ref
 
 ##### Template Variables
+
 Resolves template variables from YAML replacement sections:
+
 ```yaml
 replacement:
   release_specification_default: "/includes/release/install-windows-default.rst"
 ```
+
 - Input: `{{release_specification_default}}`
 - Resolves to: `/includes/release/install-windows-default.rst`
 
@@ -2401,16 +2613,19 @@ Provides configuration management for the CLI tool:
 - **File path resolution** - Resolves file paths as absolute, monorepo-relative, or cwd-relative
 
 **Key Functions:**
+
 - `LoadConfig()` - Loads configuration from file or environment
 - `GetMonorepoPath(cmdLineArg string)` - Resolves monorepo path with priority order
 - `ResolveFilePath(pathArg string)` - Resolves file paths with flexible resolution
 
 **Priority Order for Monorepo Path:**
+
 1. Command-line argument (highest priority)
 2. Environment variable `AUDIT_CLI_MONOREPO_PATH`
 3. Config file `.audit-cli.yaml` (lowest priority)
 
 **Priority Order for File Paths:**
+
 1. Absolute path (used as-is)
 2. Relative to monorepo root (if monorepo configured and file exists there)
 3. Relative to current directory (fallback)
@@ -2428,6 +2643,7 @@ Provides centralized utilities for understanding MongoDB documentation project s
 - **Relative path resolution** - Resolves paths relative to the source directory
 
 **Key Functions:**
+
 - `FindSourceDirectory(filePath string)` - Finds the source directory for a given file
 - `DetectProjectInfo(filePath string)` - Detects project structure information
 - `DiscoverAllVersions(productDir string)` - Discovers all available versions in a product
@@ -2450,6 +2666,7 @@ Provides reusable utilities for parsing and processing RST files:
 - **Source directory detection** - Finds the documentation root
 
 **Key Functions:**
+
 - `ParseFileWithIncludes(filePath string)` - Parses RST file with include expansion
 - `ParseDirectives(content string)` - Extracts directive information from RST content
 - `ParseProcedures(filePath string, expandIncludes bool)` - Parses procedures from RST file
@@ -2458,6 +2675,7 @@ Provides reusable utilities for parsing and processing RST files:
 
 **Rstspec.toml Support:**
 The `FetchRstspec()` function retrieves the canonical composable definitions from the snooty-parser repository. This provides:
+
 - Standard composable IDs (e.g., `interface`, `language`, `deployment-type`)
 - Composable titles and descriptions
 - Default values for each composable
@@ -2472,7 +2690,7 @@ See the code in `internal/rst/` for implementation details.
 The tool normalizes language identifiers to standard file extensions:
 
 | Input          | Normalized   | Extension |
-|----------------|--------------|-----------|
+| -------------- | ------------ | --------- |
 | `bash`         | `bash`       | `.sh`     |
 | `c`            | `c`          | `.c`      |
 | `c++`          | `cpp`        | `.cpp`    |
@@ -2511,6 +2729,7 @@ The tool normalizes language identifiers to standard file extensions:
 | (unknown)      | (unchanged)  | `.txt`    |
 
 **Notes:**
+
 - Language identifiers are case-insensitive
 - Unknown languages are returned unchanged by `NormalizeLanguage()` but map to `.txt` extension
 - The normalization handles common aliases (e.g., `ts` → `typescript`, `golang` → `go`, `c++` → `cpp`)

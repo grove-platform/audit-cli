@@ -5,11 +5,28 @@ All notable changes to audit-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### Resolve Commands
+
+- `resolve url` - Resolve documentation source files to production URLs
+  - Takes a source file path (.txt) from the docs monorepo
+  - Returns the corresponding production URL on mongodb.com/docs
+  - Uses table-of-contents data as the source of truth for URL mappings
+  - Supports all projects in the monorepo (Atlas, Drivers, Manual, Tools, etc.)
+  - Handles versioned and non-versioned projects correctly
+  - Supports custom base URL for staging environments
+  - Flags:
+    - `--base-url` - Override the default base URL (default: `https://www.mongodb.com/docs`)
+
 ## [0.3.0] - 2025-01-07
 
 ### Added
 
 #### Report Commands
+
 - `report testable-code` - Analyze testable code examples on pages from analytics data
   - Takes a CSV file with page rankings and URLs from analytics
   - Resolves URLs to source files using the Snooty Data API
@@ -23,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `--details` - Show detailed per-product breakdown
 
 #### Internal Packages
+
 - `internal/language` - Programming language utilities (refactored from code-examples)
   - Language normalization (e.g., "ts" → "typescript", "py" → "python")
   - File extension mapping for all supported languages
@@ -64,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Analyze Commands
+
 - `analyze composables` - Analyze composable definitions in snooty.toml files
   - Inventory all composables across projects and versions
   - Identify identical composables (same ID, title, and options) across different projects/versions
@@ -79,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `--with-rstspec` - Show canonical composable definitions from rstspec.toml
 
 #### Configuration System
+
 - Monorepo path configuration via three methods (priority order):
   1. Command-line argument (highest priority)
   2. Environment variable `AUDIT_CLI_MONOREPO_PATH`
@@ -90,6 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applies to commands: `analyze composables`, `count tested-examples`, `count pages`
 
 #### File Path Resolution
+
 - Flexible path resolution for all file-based commands
 - Supports three path types (priority order):
   1. Absolute paths - Used as-is
@@ -99,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Eliminates need to type full paths when working with monorepo files
 
 #### Internal Packages
+
 - `internal/config` - Configuration management
   - Config file loading from `.audit-cli.yaml`
   - Environment variable support
@@ -115,6 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Initial release after splitting from the MongoDB code-example-tooling monorepo.
 
 #### Extract Commands
+
 - `extract code-examples` - Extract code examples from RST files
   - Supports `literalinclude`, `code-block`, and `io-code-block` directives
   - Handles partial file extraction with `:start-after:`, `:end-before:`, `:lines:` options
@@ -129,6 +152,7 @@ Initial release after splitting from the MongoDB code-example-tooling monorepo.
   - Optional include directive expansion
 
 #### Search Commands
+
 - `search find-string` - Search for substrings in documentation files
   - Case-sensitive and case-insensitive search modes
   - Exact word matching or partial matching
@@ -137,6 +161,7 @@ Initial release after splitting from the MongoDB code-example-tooling monorepo.
   - Language breakdown in verbose mode
 
 #### Analyze Commands
+
 - `analyze includes` - Analyze include directive relationships
   - Tree view of include dependencies
   - Flat list of all included files
@@ -155,6 +180,7 @@ Initial release after splitting from the MongoDB code-example-tooling monorepo.
   - Variation listing (composable tutorial selections and tabids)
 
 #### Compare Commands
+
 - `compare file-contents` - Compare file contents across versions
   - Direct comparison between two files
   - Version comparison mode with auto-discovery
@@ -162,6 +188,7 @@ Initial release after splitting from the MongoDB code-example-tooling monorepo.
   - Progressive detail levels (summary, paths, diffs)
 
 #### Count Commands
+
 - `count tested-examples` - Count tested code examples in the monorepo
   - Total count across all products
   - Per-product breakdown
@@ -176,6 +203,7 @@ Initial release after splitting from the MongoDB code-example-tooling monorepo.
   - Current version only mode
 
 #### Internal Packages
+
 - `internal/rst` - RST parsing utilities
   - Directive parsing (literalinclude, code-block, io-code-block, procedure, step, tabs, composable-tutorial)
   - Include directive following with circular detection
@@ -187,13 +215,14 @@ Initial release after splitting from the MongoDB code-example-tooling monorepo.
   - Version path resolution
 
 #### Documentation
+
 - Comprehensive README.md with usage examples
 - PROCEDURE_PARSING.md with detailed procedure parsing business logic
 - AGENTS.md for LLM development assistance
 
 ### Technical Details
+
 - Built with Go 1.24
 - Uses spf13/cobra v1.10.1 for CLI framework
 - Uses aymanbagabas/go-udiff v0.3.1 for diff generation
 - Comprehensive test coverage with deterministic testing for procedure parsing
-

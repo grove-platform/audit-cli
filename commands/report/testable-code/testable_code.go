@@ -52,21 +52,35 @@ func NewTestableCodeCommand() *cobra.Command {
 	var outputFile string
 	var filters []string
 	var listDrivers bool
+	var forDocsSets []string
+	var currentOnly bool
+	var versionFilter string
+	var baseURL string
 
 	cmd := &cobra.Command{
-		Use:   "testable-code <csv-file> [monorepo-path]",
-		Short: "Analyze testable code examples on pages from analytics data",
-		Long: `Analyze testable code examples on documentation pages based on analytics CSV data.
+		Use:   "testable-code [csv-file] [monorepo-path]",
+		Short: "Analyze testable code examples on pages from analytics data or docs sets",
+		Long: `Analyze testable code examples on documentation pages based on analytics CSV data
+or by scanning specified documentation sets directly.
 
-Takes a CSV file with page rankings and URLs, resolves each URL to its source file
-in the monorepo, collects code examples (literalinclude, code-block, io-code-block),
-and generates a report with:
+INPUT MODES:
+
+1. CSV Mode (default): Takes a CSV file with page rankings and URLs.
+   Example: audit-cli report testable-code analytics.csv /path/to/monorepo
+
+2. Docs Set Mode: Scan all pages in specified content directories.
+   Example: audit-cli report testable-code --for-docs-set cloud-docs,golang,node
+
+For each page, the command resolves the URL to its source file in the monorepo,
+collects code examples (literalinclude, code-block, io-code-block), and generates
+a report with:
   - Total code examples per page
   - Breakdown by product/language
   - Input vs output counts (for io-code-block)
-  - Tested vs untested counts
+  - Tested vs untested counts (Untested = Total - Tested)
   - Testable count (examples that could be tested based on product)
   - Maybe testable count (javascript/shell examples without clear context)
+  - NeedsToBeTested flag (Yes if Testable > Tested)
 
 The CSV file should have columns for rank and URL. The first row is treated as a header.
 
@@ -102,9 +116,31 @@ Output formats:
 				return runListDrivers()
 			}
 
-			// Require CSV file if not listing drivers
+			// Determine input mode: docs set scan or CSV
+			if len(forDocsSets) > 0 {
+				// Docs set mode - scan specified content directories
+				var cmdLineArg string
+				if len(args) > 0 {
+					cmdLineArg = args[0]
+				}
+				monorepoPath, err := config.GetMonorepoPath(cmdLineArg)
+				if err != nil {
+					return err
+				}
+
+				// Determine effective version filter
+				// --version takes precedence over --current-only
+				effectiveVersionFilter := versionFilter
+				if effectiveVersionFilter == "" && currentOnly {
+					effectiveVersionFilter = "current"
+				}
+
+				return runTestableCodeForDocsSets(forDocsSets, monorepoPath, baseURL, effectiveVersionFilter, outputFormat, showDetails, outputFile, filters)
+			}
+
+			// CSV mode - require CSV file
 			if len(args) < 1 {
-				return fmt.Errorf("requires at least 1 arg(s), only received 0")
+				return fmt.Errorf("requires a CSV file or use --for-docs-set to scan docs sets directly")
 			}
 
 			csvPath := args[0]
@@ -128,6 +164,10 @@ Output formats:
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: stdout)")
 	cmd.Flags().StringSliceVar(&filters, "filter", nil, "Filter pages by product area (search, vector-search, drivers, driver:<name>, mongosh)")
 	cmd.Flags().BoolVar(&listDrivers, "list-drivers", false, "List all drivers from the Snooty Data API")
+	cmd.Flags().StringSliceVar(&forDocsSets, "for-docs-set", nil, "Scan all pages in specified docs sets (content directory names)")
+	cmd.Flags().BoolVar(&currentOnly, "current-only", true, "When scanning docs sets, only include current version pages (default: true)")
+	cmd.Flags().StringVar(&versionFilter, "version", "", "Only include pages from specified version (e.g., v8.0, current, upcoming). Overrides --current-only")
+	cmd.Flags().StringVar(&baseURL, "base-url", "https://www.mongodb.com/docs", "Base URL for resolving page URLs")
 
 	return cmd
 }
@@ -148,8 +188,8 @@ func runListDrivers() error {
 
 	// Build a list of driver info and sort by project name (the filter value)
 	type driverInfo struct {
-		projectName string
-		slug        string
+		projectName  string
+		slug         string
 		hasTestInfra bool
 	}
 	drivers := make([]driverInfo, 0, len(driverSlugs))
@@ -185,6 +225,107 @@ func runListDrivers() error {
 	fmt.Println("Note: mongodb-shell is not a driver. Use --filter mongosh instead.")
 
 	return nil
+}
+
+// runTestableCodeForDocsSets runs the testable-code analysis by scanning specified docs sets.
+// versionFilter can be: "" (all versions), "current" (only current), or a specific version like "v8.0"
+func runTestableCodeForDocsSets(docsSets []string, monorepoPath, baseURL string, versionFilter string, outputFormat string, showDetails bool, outputFile string, filters []string) error {
+	fmt.Fprintf(os.Stderr, "Scanning docs sets: %v\n", docsSets)
+	if versionFilter != "" {
+		fmt.Fprintf(os.Stderr, "Version filter: %s\n", versionFilter)
+	}
+
+	// Scan docs sets to get page entries
+	scanResult, err := ScanDocsSets(monorepoPath, docsSets, versionFilter, baseURL)
+	if err != nil {
+		return fmt.Errorf("failed to scan docs sets: %w", err)
+	}
+
+	// Print any errors that occurred during scanning
+	if scanResult.HasErrors() {
+		scanResult.PrintErrorReport()
+	}
+
+	entries := scanResult.Entries
+	fmt.Fprintf(os.Stderr, "Found %d pages in docs sets\n", len(entries))
+
+	if len(entries) == 0 {
+		return fmt.Errorf("no pages found in specified docs sets")
+	}
+
+	// Get URL mapping - needed for driver filters and page analysis
+	urlMapping, err := config.GetURLMapping(monorepoPath)
+	if err != nil {
+		return fmt.Errorf("failed to get URL mapping: %w", err)
+	}
+
+	// Validate filters before applying
+	if err := validateFilters(filters); err != nil {
+		return err
+	}
+
+	// Apply URL filters if specified
+	if len(filters) > 0 {
+		originalCount := len(entries)
+		entries = filterEntries(entries, filters, urlMapping)
+		fmt.Fprintf(os.Stderr, "Filtered to %d pages matching filter(s): %v\n", len(entries), filters)
+		if len(entries) == 0 {
+			fmt.Fprintf(os.Stderr, "Warning: No pages matched the specified filter(s). Original count: %d\n", originalCount)
+		}
+	}
+
+	// Load product mappings from rstspec.toml
+	fmt.Fprintf(os.Stderr, "Loading product mappings from rstspec.toml...\n")
+	mappings, err := LoadProductMappings()
+	if err != nil {
+		return fmt.Errorf("failed to load product mappings: %w", err)
+	}
+
+	// Analyze each page
+	var reports []PageReport
+	for i, entry := range entries {
+		fmt.Fprintf(os.Stderr, "Analyzing page %d/%d: %s\n", i+1, len(entries), entry.URL)
+
+		analysis, err := AnalyzePage(entry, urlMapping, mappings)
+		if err != nil {
+			// Log error but continue with other pages
+			fmt.Fprintf(os.Stderr, "  Warning: %v\n", err)
+			reports = append(reports, PageReport{
+				Rank:    entry.Rank,
+				URL:     entry.URL,
+				DocsSet: entry.DocsSet,
+				Error:   err.Error(),
+			})
+			continue
+		}
+
+		report := BuildPageReport(analysis, entry.DocsSet)
+		reports = append(reports, report)
+	}
+
+	// Determine output writer
+	var writer *os.File
+	if outputFile != "" {
+		f, err := os.Create(outputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer f.Close()
+		writer = f
+		fmt.Fprintf(os.Stderr, "Writing output to %s\n", outputFile)
+	} else {
+		writer = os.Stdout
+	}
+
+	// Output results
+	switch outputFormat {
+	case "json":
+		return OutputJSON(writer, reports)
+	case "csv":
+		return OutputCSV(writer, reports, showDetails)
+	default:
+		return OutputText(writer, reports)
+	}
 }
 
 // runTestableCode is the main entry point for the testable-code command.
@@ -235,14 +376,15 @@ func runTestableCode(csvPath, monorepoPath, outputFormat string, showDetails boo
 			// Log error but continue with other pages
 			fmt.Fprintf(os.Stderr, "  Warning: %v\n", err)
 			reports = append(reports, PageReport{
-				Rank:  entry.Rank,
-				URL:   entry.URL,
-				Error: err.Error(),
+				Rank:    entry.Rank,
+				URL:     entry.URL,
+				DocsSet: entry.DocsSet,
+				Error:   err.Error(),
 			})
 			continue
 		}
 
-		report := BuildPageReport(analysis)
+		report := BuildPageReport(analysis, entry.DocsSet)
 		reports = append(reports, report)
 	}
 
