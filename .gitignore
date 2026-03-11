@@ -4,3 +4,4 @@ bin/
 .idea/
 .vscode/
 coverage.out
+.audit-cli.yaml

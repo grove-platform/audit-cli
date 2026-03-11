@@ -57,7 +57,7 @@ go run main.go [command] [flags]
 
 ### Monorepo Path Configuration
 
-Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`). You can configure the monorepo path in three ways, listed in order of priority:
+Some commands require a monorepo path (e.g., `analyze composables`, `count tested-examples`, `count pages`, `report testable-code --for-docs-set`). You can configure the monorepo path in three ways, listed in order of priority:
 
 ### 1. Command-Line Argument (Highest Priority)
 
@@ -67,6 +67,7 @@ Pass the path directly to the command:
 ./audit-cli analyze composables /path/to/docs-monorepo
 ./audit-cli count tested-examples /path/to/docs-monorepo
 ./audit-cli count pages /path/to/docs-monorepo
+./audit-cli report testable-code --for-docs-set manual /path/to/docs-monorepo
 ```
 
 ### 2. Environment Variable
@@ -1644,7 +1645,7 @@ rank,url
 
 Input mode flags:
 
-- `--for-docs-set <names>` - Scan all pages in specified docs sets (content directory names, comma-separated). Enables Docs Set Mode instead of CSV Mode.
+- `--for-docs-set <names>` - Scan all pages in specified docs sets (content directory names, comma-separated). Enables Docs Set Mode instead of CSV Mode. Requires a configured monorepo path (see [Monorepo Path Configuration](#monorepo-path-configuration)).
 
 Version filtering flags (only apply in Docs Set Mode):
 
