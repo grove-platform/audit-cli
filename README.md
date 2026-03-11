@@ -1575,9 +1575,14 @@ echo "Total documentation pages: $TOTAL_PAGES"
 
 #### `report testable-code`
 
-Analyze testable code examples on documentation pages based on analytics CSV data.
+Analyze testable code examples on documentation pages based on analytics CSV data or by scanning documentation sets directly.
 
-This command takes a CSV file with page rankings and URLs, resolves each URL to its source file in the monorepo, collects code examples (literalinclude, code-block, io-code-block), and generates a report with testability information.
+This command resolves URLs to source files in the monorepo, collects code examples (literalinclude, code-block, io-code-block), and generates a report with testability information.
+
+**Input Modes:**
+
+1. **CSV Mode** (default): Takes a CSV file with page rankings and URLs
+2. **Docs Set Mode**: Scan all pages in specified content directories using `--for-docs-set`
 
 **Use Cases:**
 
@@ -1588,6 +1593,7 @@ This command helps writers and maintainers:
 - Track the ratio of tested vs testable code examples
 - Understand code example distribution by product/language
 - Find "maybe testable" examples that need manual review
+- Scan entire documentation sets for testability analysis
 
 **Key Concepts:**
 
@@ -1598,11 +1604,20 @@ This command helps writers and maintainers:
 **Examples:**
 
 ```bash
-# Analyze pages from a CSV file (specify monorepo path)
+# CSV Mode: Analyze pages from a CSV file (specify monorepo path)
 ./audit-cli report testable-code analytics.csv /path/to/docs-monorepo
 
-# Use configured monorepo path (from config file or environment variable)
+# CSV Mode: Use configured monorepo path (from config file or environment variable)
 ./audit-cli report testable-code analytics.csv
+
+# Docs Set Mode: Scan all pages in specified docs sets
+./audit-cli report testable-code --for-docs-set cloud-docs,golang,node
+
+# Docs Set Mode: Scan only a specific version
+./audit-cli report testable-code --for-docs-set manual --version v8.0
+
+# Docs Set Mode: Scan all versions (not just current)
+./audit-cli report testable-code --for-docs-set manual --current-only=false
 
 # Output as JSON to a file
 ./audit-cli report testable-code analytics.csv --format json --output report.json
@@ -1627,9 +1642,24 @@ rank,url
 
 **Flags:**
 
+Input mode flags:
+
+- `--for-docs-set <names>` - Scan all pages in specified docs sets (content directory names, comma-separated). Enables Docs Set Mode instead of CSV Mode.
+
+Version filtering flags (only apply in Docs Set Mode):
+
+- `--version <version>` - Only include pages from specified version (e.g., `v8.0`, `current`, `upcoming`). Overrides `--current-only`.
+- `--current-only` - Only include current version pages (default: `true`). Use `--current-only=false` to scan all versions.
+- `--base-url <url>` - Base URL for resolving page URLs (default: `https://www.mongodb.com/docs`)
+
+Output flags:
+
 - `--format, -f <format>` - Output format: `text` (default), `json`, or `csv`
 - `--output, -o <file>` - Output file path (default: stdout)
 - `--details` - Show detailed per-product breakdown (for CSV output, includes per-product columns)
+
+Filter flags:
+
 - `--filter <filter>` - Filter pages by product area (can be specified multiple times)
 - `--list-drivers` - List all available driver filter options from the Snooty Data API
 

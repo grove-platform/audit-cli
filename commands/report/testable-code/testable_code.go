@@ -54,6 +54,7 @@ func NewTestableCodeCommand() *cobra.Command {
 	var listDrivers bool
 	var forDocsSets []string
 	var currentOnly bool
+	var versionFilter string
 	var baseURL string
 
 	cmd := &cobra.Command{
@@ -127,7 +128,14 @@ Output formats:
 					return err
 				}
 
-				return runTestableCodeForDocsSets(forDocsSets, monorepoPath, baseURL, currentOnly, outputFormat, showDetails, outputFile, filters)
+				// Determine effective version filter
+				// --version takes precedence over --current-only
+				effectiveVersionFilter := versionFilter
+				if effectiveVersionFilter == "" && currentOnly {
+					effectiveVersionFilter = "current"
+				}
+
+				return runTestableCodeForDocsSets(forDocsSets, monorepoPath, baseURL, effectiveVersionFilter, outputFormat, showDetails, outputFile, filters)
 			}
 
 			// CSV mode - require CSV file
@@ -158,6 +166,7 @@ Output formats:
 	cmd.Flags().BoolVar(&listDrivers, "list-drivers", false, "List all drivers from the Snooty Data API")
 	cmd.Flags().StringSliceVar(&forDocsSets, "for-docs-set", nil, "Scan all pages in specified docs sets (content directory names)")
 	cmd.Flags().BoolVar(&currentOnly, "current-only", true, "When scanning docs sets, only include current version pages (default: true)")
+	cmd.Flags().StringVar(&versionFilter, "version", "", "Only include pages from specified version (e.g., v8.0, current, upcoming). Overrides --current-only")
 	cmd.Flags().StringVar(&baseURL, "base-url", "https://www.mongodb.com/docs", "Base URL for resolving page URLs")
 
 	return cmd
@@ -219,15 +228,25 @@ func runListDrivers() error {
 }
 
 // runTestableCodeForDocsSets runs the testable-code analysis by scanning specified docs sets.
-func runTestableCodeForDocsSets(docsSets []string, monorepoPath, baseURL string, currentOnly bool, outputFormat string, showDetails bool, outputFile string, filters []string) error {
+// versionFilter can be: "" (all versions), "current" (only current), or a specific version like "v8.0"
+func runTestableCodeForDocsSets(docsSets []string, monorepoPath, baseURL string, versionFilter string, outputFormat string, showDetails bool, outputFile string, filters []string) error {
 	fmt.Fprintf(os.Stderr, "Scanning docs sets: %v\n", docsSets)
+	if versionFilter != "" {
+		fmt.Fprintf(os.Stderr, "Version filter: %s\n", versionFilter)
+	}
 
 	// Scan docs sets to get page entries
-	entries, err := ScanDocsSets(monorepoPath, docsSets, currentOnly, baseURL)
+	scanResult, err := ScanDocsSets(monorepoPath, docsSets, versionFilter, baseURL)
 	if err != nil {
 		return fmt.Errorf("failed to scan docs sets: %w", err)
 	}
 
+	// Print any errors that occurred during scanning
+	if scanResult.HasErrors() {
+		scanResult.PrintErrorReport()
+	}
+
+	entries := scanResult.Entries
 	fmt.Fprintf(os.Stderr, "Found %d pages in docs sets\n", len(entries))
 
 	if len(entries) == 0 {
