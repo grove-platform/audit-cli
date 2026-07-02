@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-02
+
 ### Added
+
+#### Generate Commands
+
+- `generate llms` - Generate a per-project `llms.txt` file for progressive disclosure
+  - Enumerates each project's current-version (and non-versioned) pages
+  - Extracts the page title (H1) and `meta` `:description:` for each page
+  - Resolves the production URL with `.md` appended
+  - Writes `<output-dir>/<project>/llms.txt` and prints a per-project
+    character-count summary (with and without descriptions), flagging files
+    over the 50,000-character `llms.txt` guideline
+  - Root landing pages use the `<root>/index.md` markdown form
+  - Resolves snooty `{+name+}` substitutions in titles and descriptions from
+    the project's `snooty.toml` `[constants]`
+  - Excludes `includes/` and `code-examples/` directories and the deprecated
+    `app-services` and `realm` projects
+  - Flags:
+    - `--output-dir` - Directory to write files into (default: `llms-output`)
+    - `--for-project` - Limit generation to a single project
+    - `--no-descriptions` - Omit `meta` descriptions from the written files
+    - `--base-url` - Override the default base URL (default: `https://www.mongodb.com/docs`)
 
 #### Resolve Commands
 
@@ -21,7 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Flags:
     - `--base-url` - Override the default base URL (default: `https://www.mongodb.com/docs`)
 
-## [0.3.0] - 2025-01-07
+#### Internal Packages
+
+- `internal/rst/meta_parser.go` - Extract the `:description:` field from a page's `.. meta::` directive
+- `internal/rst/page_title.go` - Extract a page's H1 title (underline-only and overline+underline styles)
+- `internal/snooty` - Parse `[constants]` and resolve `{+name+}` substitutions (`ResolveSubstitutions`)
+
+## [0.3.0] - 2026-01-07
 
 ### Added
 

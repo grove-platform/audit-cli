@@ -14,6 +14,7 @@ A Go CLI tool for performing audit-related tasks in the MongoDB documentation mo
   - [Count Commands](#count-commands)
   - [Report Commands](#report-commands)
   - [Resolve Commands](#resolve-commands)
+  - [Generate Commands](#generate-commands)
 - [Development](#development)
   - [Project Structure](#project-structure)
   - [Adding New Commands](#adding-new-commands)
@@ -1831,6 +1832,63 @@ The command supports all projects defined in the documentation monorepo's table-
 - Tools (Compass, Database Tools, MongoDB Shell, etc.)
 - Connectors (Kafka, Spark, BI Connector)
 - And many more
+
+### Generate Commands
+
+#### `generate llms`
+
+Generate a per-project `llms.txt` file for every documentation project.
+
+This command supports an [`llms.txt`](https://llmstxt.org/) progressive-disclosure setup: a master `llms.txt` acts like a sitemap that links to each project's own `llms.txt`, which in turn lists that project's pages. For each project, this command enumerates the pages of its **current version** (and non-versioned projects), extracts each page's title and `meta` description, resolves its production URL (with `.md` appended), and writes the project's `llms.txt`.
+
+Each line follows the standard format:
+
+```
+- [Page Title](https://www.mongodb.com/docs/manual/core/document.md): Definition, structure, and limitations of documents in MongoDB.
+```
+
+**Behavior details:**
+
+- **Version scope:** Only the current version of each project is included, plus projects that are not versioned. Older versions and `upcoming` are skipped.
+- **Root landing pages:** A project's root landing page has no `<root>.md` markdown form; its markdown lives at `<root>/index.md`, so that form is emitted. Nested section index pages resolve to the normal `<section>.md` form.
+- **Missing descriptions:** Pages without a `meta` `:description:` are emitted without the trailing `: description`.
+- **Substitutions:** Snooty constant references (`{+name+}`) in titles and descriptions are resolved from the project's `snooty.toml` `[constants]`.
+- **Excluded content:** Partial (`includes/`) and `code-examples/` directories are skipped since they are not standalone pages. The deprecated `app-services` and `realm` projects, along with non-project directories (`404`, `docs-platform`, `meta`, `table-of-contents`), are excluded.
+- **Character-count summary:** After writing the files, the command prints a per-project table showing the character count both **with** and **without** descriptions, flagging any file that exceeds the 50,000-character `llms.txt` guideline. This helps decide whether descriptions fit for larger projects.
+
+**Basic Usage:**
+
+```bash
+# Generate llms.txt for all projects (uses the configured monorepo path)
+./audit-cli generate llms
+# Writes files to ./llms-output/<project>/llms.txt and prints a summary
+
+# Generate for a single project
+./audit-cli generate llms --for-project atlas
+
+# Omit descriptions (useful for oversized projects or while iterating on docs)
+./audit-cli generate llms --for-project cloud-docs --no-descriptions
+
+# Point at a specific monorepo and output directory
+./audit-cli generate llms /path/to/docs-mongodb-internal --output-dir build/llms
+```
+
+**Flags:**
+
+- `--output-dir <dir>` - Directory to write per-project `llms.txt` files into (default: `llms-output`)
+- `--for-project <name>` - Limit generation to a single project (content directory name)
+- `--no-descriptions` - Omit `meta` descriptions from the written files
+- `--base-url <url>` - Base URL for production documentation (default: `https://www.mongodb.com/docs`)
+
+**Output layout:**
+
+```
+llms-output/
+  atlas/llms.txt
+  manual/llms.txt
+  node/llms.txt
+  ...
+```
 
 ## Development
 

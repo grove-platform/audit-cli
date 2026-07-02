@@ -11,11 +11,42 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/grove-platform/audit-cli/internal/projectinfo"
 )
+
+// substitutionPattern matches snooty constant references of the form {+name+}.
+var substitutionPattern = regexp.MustCompile(`\{\+\s*([^+}]+?)\s*\+\}`)
+
+// ResolveSubstitutions replaces snooty constant references ({+name+}) in text
+// with their values from the given constants map. References to unknown
+// constants are left unchanged. Nested references (a constant whose value
+// contains another {+...+}) are resolved up to a small fixed depth.
+func ResolveSubstitutions(text string, constants map[string]string) string {
+	if len(constants) == 0 || !strings.Contains(text, "{+") {
+		return text
+	}
+	for i := 0; i < 5; i++ {
+		if !strings.Contains(text, "{+") {
+			break
+		}
+		replaced := substitutionPattern.ReplaceAllStringFunc(text, func(match string) string {
+			name := strings.TrimSpace(substitutionPattern.FindStringSubmatch(match)[1])
+			if value, ok := constants[name]; ok {
+				return value
+			}
+			return match
+		})
+		if replaced == text {
+			break
+		}
+		text = replaced
+	}
+	return text
+}
 
 // Composable represents a composable definition from a snooty.toml file.
 type Composable struct {
@@ -34,9 +65,10 @@ type ComposableOption struct {
 
 // Config represents the structure of a snooty.toml file.
 type Config struct {
-	Name        string       `toml:"name"`
-	Title       string       `toml:"title"`
-	Composables []Composable `toml:"composables"`
+	Name        string            `toml:"name"`
+	Title       string            `toml:"title"`
+	Composables []Composable      `toml:"composables"`
+	Constants   map[string]string `toml:"constants"`
 }
 
 // ParseFile parses a snooty.toml file and returns its configuration.

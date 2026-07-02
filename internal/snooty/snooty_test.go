@@ -314,3 +314,64 @@ func TestIsCurrentVersion(t *testing.T) {
 	}
 }
 
+
+func TestResolveSubstitutions(t *testing.T) {
+	constants := map[string]string{
+		"atlas-cli":       "Atlas CLI",
+		"atlas-admin-api": "Atlas Administration API",
+		"nested":          "prefix {+atlas-cli+}",
+	}
+
+	tests := []struct {
+		name      string
+		text      string
+		constants map[string]string
+		want      string
+	}{
+		{
+			name:      "single substitution",
+			text:      "What is the {+atlas-cli+}?",
+			constants: constants,
+			want:      "What is the Atlas CLI?",
+		},
+		{
+			name:      "multiple substitutions",
+			text:      "Use the {+atlas-admin-api+} from the {+atlas-cli+}",
+			constants: constants,
+			want:      "Use the Atlas Administration API from the Atlas CLI",
+		},
+		{
+			name:      "unknown constant left unchanged",
+			text:      "Value of {+unknown+} here",
+			constants: constants,
+			want:      "Value of {+unknown+} here",
+		},
+		{
+			name:      "nested substitution resolved",
+			text:      "{+nested+}",
+			constants: constants,
+			want:      "prefix Atlas CLI",
+		},
+		{
+			name:      "no substitutions",
+			text:      "Plain title",
+			constants: constants,
+			want:      "Plain title",
+		},
+		{
+			name:      "nil constants",
+			text:      "What is the {+atlas-cli+}?",
+			constants: nil,
+			want:      "What is the {+atlas-cli+}?",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveSubstitutions(tt.text, tt.constants)
+			if got != tt.want {
+				t.Errorf("ResolveSubstitutions() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
