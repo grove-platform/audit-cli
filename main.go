@@ -20,6 +20,7 @@ import (
 	"github.com/grove-platform/audit-cli/commands/compare"
 	"github.com/grove-platform/audit-cli/commands/count"
 	"github.com/grove-platform/audit-cli/commands/extract"
+	"github.com/grove-platform/audit-cli/commands/generate"
 	"github.com/grove-platform/audit-cli/commands/report"
 	"github.com/grove-platform/audit-cli/commands/resolve"
 	"github.com/grove-platform/audit-cli/commands/search"
@@ -58,6 +59,7 @@ Designed for maintenance tasks, scoping work, and reporting to stakeholders.`,
 	rootCmd.AddCommand(count.NewCountCommand())
 	rootCmd.AddCommand(report.NewReportCommand())
 	rootCmd.AddCommand(resolve.NewResolveCommand())
+	rootCmd.AddCommand(generate.NewGenerateCommand())
 
 	err := rootCmd.Execute()
 	if err != nil {
