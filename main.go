@@ -29,7 +29,7 @@ import (
 
 // version is the current version of audit-cli.
 // Update this when releasing new versions following semantic versioning.
-const version = "0.3.0"
+const version = "0.4.0"
 
 func main() {
 	var rootCmd = &cobra.Command{
